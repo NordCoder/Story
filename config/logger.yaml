@@ -1,0 +1,14 @@
+logger:
+  level: "info"               # debug, info, warn, error
+  encoding: "json"            # json или console
+  output_paths:
+    - "stdout"                # куда писать логи уровня <= ERROR
+    - "logs/app.log"
+  error_output_paths:
+    - "stderr"                # куда писать логи уровня >= ERROR
+    - "logs/app_error.log"
+  rotation:
+    max_size: 100              # MB
+    max_backups: 7             # сколько файлов хранить
+    max_age: 28                # дней
+    compress: true             # gzip сжатие

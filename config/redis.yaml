@@ -1,0 +1,21 @@
+redis:
+  # базовый адрес
+  host: "redis"      # в Docker-Compose просто имя сервиса
+  port: 6379
+
+  # аутентификация
+  password: ""       # "" → без пароля
+  db: 0              # номер логической базы
+
+  # таймауты
+  dial_timeout:   "3s"
+  read_timeout:   "1s"
+  write_timeout:  "1s"
+
+  # connection-pool
+  pool_size:        10   # макс. открытых соединений
+  min_idle_conns:    2   # держать «теплыми»
+  pool_timeout:    "5s"  # ждать свободный коннект
+
+  # health-check при старте
+  ping_timeout:    "2s"

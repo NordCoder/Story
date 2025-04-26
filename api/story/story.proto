@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package story;
+
+option go_package = "https://github.com/NordCoder/Story;storypb";
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+
+service Story {
+  rpc GetFact(google.protobuf.Empty) returns (GetFactResponse) {
+    option (google.api.http) = {
+      get: "/v1/story/fact"
+    };
+  }
+}
+
+message Fact {
+  string title    = 1;
+  string summary  = 2;
+  string wiki_url = 3;
+  string img_url  = 4;
+}
+
+message GetFactResponse {
+  Fact fact = 1;
+}

@@ -1,0 +1,53 @@
+http:
+  host: "0.0.0.0"
+  port: 9292
+
+  grpc_host: "0.0.0.0"
+  grpc_port: 9191
+
+  timeouts:
+    read:  "5s"    # максимальное время чтения запроса от клиента
+    write: "10s"   # максимальное время записи ответа клиенту
+    idle:  "120s"  # время ожидания нового запроса на том же соединении
+    shutdown_grace_period: "15s"  # время плавного выключения сервера
+
+  # TLS настройка (опционально) !FUTURES!
+  tls:
+    enabled:    true
+    cert_file:  "/etc/wikifeed/tls/server.crt"
+    key_file:   "/etc/wikifeed/tls/server.key"
+
+  # CORS (Cross-Origin Resource Sharing) !FUTURES!
+  cors:
+    enabled: true
+    allowed_origins:
+      - "https://example.com"
+      - "https://*.example.org"
+    allowed_methods:
+      - GET
+      - POST
+      - OPTIONS
+    allowed_headers:
+      - Content-Type
+      - Authorization
+    allow_credentials: true
+    max_age: "24h"
+
+  # HTTP заголовок для корреляции запросов (Request ID) !FUTURES!
+  request_id:
+    header_name: "X-Request-ID"
+    generate_if_missing: true
+
+  # Метрики и отладка !FUTURES!
+  endpoints:
+    health:       "/health"
+    metrics:      "/metrics"
+    pprof:        "/debug/pprof/"
+
+  # Логирование HTTP-запросов !FUTURES!
+  logging:
+    enabled: true
+    # Формат: "json" или "text"
+    format: "json"
+    # Уровень логирования middleware
+    level: "info"
