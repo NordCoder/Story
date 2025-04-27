@@ -1,12 +1,17 @@
 package app
 
+// TODO: someone has to work with logging 😓
+
 import (
 	"context"
 	"fmt"
 	"github.com/NordCoder/Story/config"
 	storypb "github.com/NordCoder/Story/generated/api/story"
 	"github.com/NordCoder/Story/internal/controller"
+	"github.com/NordCoder/Story/internal/infrastructure/category"
+	"github.com/NordCoder/Story/internal/infrastructure/prefetch"
 	"github.com/NordCoder/Story/internal/infrastructure/redis"
+	"github.com/NordCoder/Story/internal/infrastructure/wikipedia"
 	logger2 "github.com/NordCoder/Story/internal/logger"
 	"github.com/NordCoder/Story/internal/usecase"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -54,12 +59,26 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	r.Get(httpCfg.Endpoints.Metrics, promhttp.Handler().ServeHTTP)
 	r.Mount(httpCfg.Endpoints.Pprof, middleware.Profiler())
 
+	categories := []category.CategorySelection{
+		{Category: "History", Lang: "en"}, // todo: вынести куда-то, пока пример просто
+	}
+
+	provided := category.NewRandomCategoryProvider(categories)
+
+	wiki := wikipedia.NewClient()
+
 	redisClient, err := redis.NewRedisClient()
 	if err != nil {
 		logger.Fatal("failed to start redis client", zap.Error(err))
 	}
 
-	factRepo := redis.NewFactRepository(redisClient, 5*time.Hour)
+	factRepo := redis.NewFactRepository(redisClient, 5*time.Hour, provided)
+
+	prefetchConfig, err := config.NewPrefetcherConfig()
+	if err != nil {
+		return err
+	}
+	prefetch.NewPrefetcher(prefetchConfig, wiki, factRepo, logger, provided)
 
 	ctrl := controller.New(usecase.NewFactUseCase(factRepo))
 
@@ -80,7 +99,7 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 
 	gw := runtime.NewServeMux()
 	if err := storypb.RegisterStoryHandlerFromEndpoint(ctx, gw, httpCfg.GrpcHost+":"+httpCfg.GrpcHost, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}); err != nil {
-		return err
+		return err // todo it seems like a bullshit, maybe httpCfg.GrpcHost+":"+httpCfg.GrpcPort
 	}
 	r.Mount("/", gw)
 

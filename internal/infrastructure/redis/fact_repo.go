@@ -1,11 +1,14 @@
 package redis
 
+// TODO: make seveFacts with bull insert
+
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/NordCoder/Story/internal/infrastructure"
+	"github.com/NordCoder/Story/internal/infrastructure/category"
 	"github.com/NordCoder/Story/internal/logger"
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
@@ -25,17 +28,19 @@ type FactRepository struct {
 	ttl    time.Duration // TTL для отдельного Fact-кеша
 
 	// Ключевые шаблоны — можно переопределить при инициализации, чтобы не жёстко фиксировать строки
-	keyFact      string // "fact:%s"  — Hash/JSON по ID
-	keyFeedQueue string // "feed_queue" — Redis List с ID фактов
+	keyFact          string // "fact:%s"  — Hash/JSON по ID
+	keyFeedQueue     string // "feed_queue" — Redis List с ID фактов
+	categoryProvider category.CategoryProvider
 }
 
 // NewFactRepository — гибкий конструктор
-func NewFactRepository(client *redis.Client, ttl time.Duration, opts ...Option) *FactRepository {
+func NewFactRepository(client *redis.Client, ttl time.Duration, categoryProvider category.CategoryProvider, opts ...Option) *FactRepository {
 	repo := &FactRepository{
-		client:       client,
-		ttl:          ttl,
-		keyFact:      "fact:%s",
-		keyFeedQueue: "feed_queue",
+		client:           client,
+		ttl:              ttl,
+		keyFact:          "fact:%s",
+		keyFeedQueue:     "feed_queue",
+		categoryProvider: categoryProvider,
 	}
 	for _, o := range opts {
 		o(repo)
@@ -47,6 +52,9 @@ type Option func(*FactRepository)
 
 func WithKeyFact(pattern string) Option   { return func(r *FactRepository) { r.keyFact = pattern } }
 func WithKeyFeedQueue(name string) Option { return func(r *FactRepository) { r.keyFeedQueue = name } }
+func WithCategoryProvider(provider category.CategoryProvider) Option {
+	return func(r *FactRepository) { r.categoryProvider = provider }
+}
 
 // Save сохраняет факт и одновременно пушит его ID в очередь feed_queue.
 // Операция атомарна, если вызывается внутри Transactor.WithTx.
@@ -106,4 +114,13 @@ func (r *FactRepository) PopRandom(ctx context.Context) (*entity.Fact, error) {
 
 func (r *FactRepository) factKey(id entity.FactID) string {
 	return fmt.Sprintf(r.keyFact, id)
+}
+
+func (r *FactRepository) CountFacts(ctx context.Context) (int64, error) {
+	cli := FromContext(ctx, r.client)
+	count, err := cli.LLen(ctx, r.keyFeedQueue).Result()
+	if err != nil {
+		return 0, fmt.Errorf("failed to count facts: %w", err)
+	}
+	return count, nil
 }

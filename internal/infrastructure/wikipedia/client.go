@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/NordCoder/Story/internal/entity"
 	"github.com/cenkalti/backoff/v4"
 	"io"
 	"net/http"
@@ -35,6 +36,27 @@ type ArticleSummary struct {
 	Extract  string
 	ImageURL string
 	PageURL  string
+}
+
+// ToFact конвертирует ArticleSummary в entity.Fact.
+func (a *ArticleSummary) ToFact(lang string) *entity.Fact {
+	return &entity.Fact{
+		ID:        entity.NewFactID(), // создаём новый уникальный ID
+		Title:     a.Title,
+		Summary:   trimSummary(a.Extract), // обрезаем до 280 символов
+		ImageURL:  a.ImageURL,
+		SourceURL: a.PageURL,
+		Lang:      lang,
+		FetchedAt: time.Now(), // ставим текущее время
+	}
+}
+
+// trimSummary обрезает текст до 280 символов.
+func trimSummary(s string) string {
+	if len(s) <= 280 {
+		return s
+	}
+	return s[:280]
 }
 
 // HTTPClient defines the minimal interface for making HTTP requests

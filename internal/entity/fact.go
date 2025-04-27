@@ -2,11 +2,17 @@ package entity
 
 import (
 	"errors"
+	"github.com/google/uuid"
 	"time"
 )
 
 // FactID — уникальный идентификатор факта (UUID v4).
 type FactID string
+
+// NewFactID генерирует новый уникальный идентификатор факта (UUID v4).
+func NewFactID() FactID {
+	return FactID(uuid.New().String())
+}
 
 // Fact — единица контента, которую мы доставляем пользователю.
 type Fact struct {
