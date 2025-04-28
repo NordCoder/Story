@@ -1,8 +1,55 @@
-# Default ignored files
-/shelf/
-/workspace.xml
-# Editor-based HTTP Client requests
-/httpRequests/
-# Datasource local storage ignored files
-/dataSources/
-/dataSources.local.xml
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Output of `go build`
+/bin/
+/build/
+/dist/
+
+# Output of `go run`
+*.out
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Dependency directories
+/vendor/
+
+# IDE/editor settings
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Protobuf generated files
+**/*.pb.go
+**/*.swagger.json
+
+# Docker
+*.tar
+
+# Temporary files
+tmp/
+*.tmp
+.cache/
+coverage.out
+
+# Ignore generated files
+/generated/
