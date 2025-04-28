@@ -124,3 +124,8 @@ func (r *FactRepository) CountFacts(ctx context.Context) (int64, error) {
 	}
 	return count, nil
 }
+
+func (r *FactRepository) Ping(ctx context.Context) error {
+	cli := FromContext(ctx, r.client)
+	return cli.Ping(ctx).Err()
+}

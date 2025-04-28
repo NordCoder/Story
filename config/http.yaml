@@ -40,7 +40,8 @@ http:
 
   # Метрики и отладка !FUTURES!
   endpoints:
-    health:       "/health"
+    liveness: "/live"
+    readiness: "/ready"
     metrics:      "/metrics"
     pprof:        "/debug/pprof/"
 
