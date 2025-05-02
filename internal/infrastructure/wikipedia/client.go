@@ -264,3 +264,9 @@ func (c *Client) GetCategorySummaries(ctx context.Context, category string, limi
 	c.logger.Info("fetched category summaries", zap.String("category", category), zap.Int("count", len(summaries)))
 	return summaries, nil
 }
+
+func (c *Client) Ping(ctx context.Context) error {
+	// Мы не реально проверяем Wikipedia API, поэтому считаем, что всё ок.
+	// Можно позже реализовать реальный ping через запрос siteinfo.
+	return nil
+}

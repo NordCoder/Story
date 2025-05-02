@@ -52,10 +52,6 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	//	}))
 	//}
 
-	r.Get(httpCfg.Endpoints.Health, func(w http.ResponseWriter, _ *http.Request) { // todo make better healthcheck
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
-	})
 	r.Get(httpCfg.Endpoints.Metrics, promhttp.Handler().ServeHTTP)
 	r.Mount(httpCfg.Endpoints.Pprof, middleware.Profiler())
 
@@ -73,6 +69,19 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	}
 
 	factRepo := redis.NewFactRepository(redisClient, 5*time.Hour, provided)
+
+	// Лайвнесс: просто проверка, жив ли процесс
+	r.Get(httpCfg.Endpoints.Liveness, controller.LiveHandler)
+
+	// Рединесс: проверка реальных зависимостей
+	readinessHandler := controller.NewReadinessHandler()
+
+	// Добавляем сюда все важные зависимости
+	readinessHandler.AddDependency("redis", factRepo)
+	readinessHandler.AddDependency("wikipedia", wiki)
+
+	// Регистрируем обработчик /ready
+	readinessHandler.RegisterRoutes(r, httpCfg.Endpoints.Readiness)
 
 	prefetchConfig, err := config.NewPrefetcherConfig()
 	if err != nil {

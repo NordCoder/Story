@@ -44,9 +44,10 @@ type HTTPConfig struct {
 		GenerateIfMissing bool   `mapstructure:"generate_if_missing"`
 	} `mapstructure:"request_id"`
 	Endpoints struct {
-		Health  string `mapstructure:"health"`
-		Metrics string `mapstructure:"metrics"`
-		Pprof   string `mapstructure:"pprof"`
+		Liveness  string `mapstructure:"liveness"`
+		Readiness string `mapstructure:"readiness"`
+		Metrics   string `mapstructure:"metrics"`
+		Pprof     string `mapstructure:"pprof"`
 	} `mapstructure:"endpoints"`
 }
 
