@@ -1,20 +1,20 @@
 package controller
 
-// TODO: я не понял как найти логгер, добавить логгирование
-
 import (
 	"context"
 	storypb "github.com/NordCoder/Story/generated/api/story"
+	"github.com/NordCoder/Story/internal/logger"
 	"github.com/NordCoder/Story/internal/usecase"
 	"github.com/golang/protobuf/ptypes/empty"
+	"go.uber.org/zap"
 )
 
 func (i *implementation) GetFact(ctx context.Context, empty *empty.Empty) (*storypb.GetFactResponse, error) {
-	//i.logger.Info("GetFact called")
+	logger.LoggerFromContext(ctx).Info("getting fact")
 
 	fact, err := i.factUseCase.GetFact(ctx, usecase.GetFactInput{})
 	if err != nil {
-		//i.logger.Error("failed to get fact", zap.Error(err))
+		logger.LoggerFromContext(ctx).Error("failed to get fact", zap.Error(err))
 		return nil, GRPCError(err)
 	}
 
