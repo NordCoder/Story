@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/NordCoder/Story/internal/infrastructure"
-	"github.com/NordCoder/Story/internal/infrastructure/category"
 	"github.com/NordCoder/Story/internal/logger"
+	"github.com/NordCoder/Story/services/prefetch/category"
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 	"time"
@@ -30,11 +30,11 @@ type FactRepository struct {
 	// Ключевые шаблоны — можно переопределить при инициализации, чтобы не жёстко фиксировать строки
 	keyFact          string // "fact:%s"  — Hash/JSON по ID
 	keyFeedQueue     string // "feed_queue" — Redis List с ID фактов
-	categoryProvider category.CategoryProvider
+	categoryProvider category.Provider
 }
 
 // NewFactRepository — гибкий конструктор
-func NewFactRepository(client *redis.Client, ttl time.Duration, categoryProvider category.CategoryProvider, opts ...Option) *FactRepository {
+func NewFactRepository(client *redis.Client, ttl time.Duration, categoryProvider category.Provider, opts ...Option) *FactRepository {
 	repo := &FactRepository{
 		client:           client,
 		ttl:              ttl,
@@ -52,7 +52,7 @@ type Option func(*FactRepository)
 
 func WithKeyFact(pattern string) Option   { return func(r *FactRepository) { r.keyFact = pattern } }
 func WithKeyFeedQueue(name string) Option { return func(r *FactRepository) { r.keyFeedQueue = name } }
-func WithCategoryProvider(provider category.CategoryProvider) Option {
+func WithCategoryProvider(provider category.Provider) Option {
 	return func(r *FactRepository) { r.categoryProvider = provider }
 }
 

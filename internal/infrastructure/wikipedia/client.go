@@ -17,10 +17,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// todo implement wiki-mock before first start (it could be another service)
+
+// todo redesign to make this client return only raw data and create another entity to parse it
+
 // Default configuration constants
 const (
 	defaultAPIURL           = "https://en.wikipedia.org/w/api.php"
-	defaultUserAgent        = "bigtech-app/1.0 (https://example.com; dev@example.com) go-http-client"
+	defaultUserAgent        = "story/1.0 (dimakorzh2005@gmail.com) go-http-client"
 	defaultCategoryPageSize = 100
 	defaultMaxLag           = 5
 	defaultTimeout          = 15 * time.Second

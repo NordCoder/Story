@@ -2,14 +2,17 @@ package prefetch
 
 import (
 	"context"
+	"github.com/NordCoder/Story/services/prefetch/category"
+	"github.com/NordCoder/Story/services/prefetch/config"
 	"time"
 
-	"github.com/NordCoder/Story/config"
-	"github.com/NordCoder/Story/internal/infrastructure/category"
 	"github.com/NordCoder/Story/internal/infrastructure/redis"
 	"github.com/NordCoder/Story/internal/infrastructure/wikipedia"
 	"go.uber.org/zap"
 )
+
+// todo refactor prefatcher for work with new category system
+// todo design new category provider based on redis query
 
 type Prefetcher interface {
 	Run(ctx context.Context) error
@@ -20,7 +23,7 @@ type prefetcher struct {
 	wikipediaClient  *wikipedia.Client
 	factRepo         *redis.FactRepository
 	logger           *zap.Logger
-	categoryProvider category.CategoryProvider
+	categoryProvider category.Provider
 }
 
 // NewPrefetcher создаёт новый экземпляр префетчера.
@@ -29,7 +32,7 @@ func NewPrefetcher(
 	wikipediaClient *wikipedia.Client,
 	factRepo *redis.FactRepository,
 	logger *zap.Logger,
-	categoryProvider category.CategoryProvider,
+	categoryProvider category.Provider,
 ) Prefetcher {
 	return &prefetcher{
 		cfg:              cfg,

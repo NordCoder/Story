@@ -8,12 +8,13 @@ import (
 	"github.com/NordCoder/Story/config"
 	storypb "github.com/NordCoder/Story/generated/api/story"
 	"github.com/NordCoder/Story/internal/controller"
-	"github.com/NordCoder/Story/internal/infrastructure/category"
-	"github.com/NordCoder/Story/internal/infrastructure/prefetch"
 	"github.com/NordCoder/Story/internal/infrastructure/redis"
 	"github.com/NordCoder/Story/internal/infrastructure/wikipedia"
 	logger2 "github.com/NordCoder/Story/internal/logger"
 	"github.com/NordCoder/Story/internal/usecase"
+	"github.com/NordCoder/Story/services/prefetch"
+	"github.com/NordCoder/Story/services/prefetch/category"
+	config2 "github.com/NordCoder/Story/services/prefetch/config"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -29,6 +30,9 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+// todo fix code: initialize auth / rec services and put it on work
+// todo create separate functions to create services
 
 func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	ctx := context.Background()
@@ -55,7 +59,7 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	r.Get(httpCfg.Endpoints.Metrics, promhttp.Handler().ServeHTTP)
 	r.Mount(httpCfg.Endpoints.Pprof, middleware.Profiler())
 
-	categories := []category.CategorySelection{
+	categories := []category2.Selection{
 		{Category: "History", Lang: "en"}, // todo: вынести куда-то, пока пример просто
 	}
 
@@ -83,7 +87,7 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	// Регистрируем обработчик /ready
 	readinessHandler.RegisterRoutes(r, httpCfg.Endpoints.Readiness)
 
-	prefetchConfig, err := config.NewPrefetcherConfig()
+	prefetchConfig, err := config2.NewPrefetcherConfig()
 	if err != nil {
 		return err
 	}
