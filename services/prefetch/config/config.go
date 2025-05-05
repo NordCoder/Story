@@ -14,15 +14,14 @@ type PrefetcherConfig struct {
 }
 
 func NewPrefetcherConfig() (*PrefetcherConfig, error) {
-	v := viper.New()
-	v.SetConfigFile("config/prefetcher.yaml")
+	viper.SetConfigFile("config/prefetch.yaml")
 
-	if err := v.ReadInConfig(); err != nil {
+	if err := viper.ReadInConfig(); err != nil {
 		return nil, err
 	}
 
 	var cfg PrefetcherConfig
-	if err := v.UnmarshalKey("prefetcher", &cfg); err != nil {
+	if err := viper.UnmarshalKey("prefetcher", &cfg); err != nil {
 		return nil, err
 	}
 

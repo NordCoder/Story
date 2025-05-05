@@ -6,10 +6,9 @@ import (
 )
 
 const (
-	httpConfigPath       = "config/http.yaml"
-	loggerConfigPath     = "config/logger.yaml"
-	redisConfigPath      = "config/redis.yaml"
-	prefetcherConfiqPath = "config/prefetcher.yaml"
+	httpConfigPath   = "config/http.yaml"
+	loggerConfigPath = "config/logger.yaml"
+	redisConfigPath  = "config/redis.yaml"
 )
 
 // -- HTTP config ---------------------------------------------------------------------------------

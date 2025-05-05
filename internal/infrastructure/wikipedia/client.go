@@ -3,7 +3,6 @@ package wikipedia
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/NordCoder/Story/internal/entity"
 	"github.com/cenkalti/backoff/v4"
@@ -18,7 +17,6 @@ import (
 )
 
 // todo implement wiki-mock before first start (it could be another service)
-
 // todo redesign to make this client return only raw data and create another entity to parse it
 
 // Default configuration constants
@@ -30,17 +28,6 @@ const (
 	defaultTimeout          = 15 * time.Second
 	defaultMaxRetries       = 3
 )
-
-// ErrNoPages indicates that the API returned no pages
-var ErrNoPages = errors.New("wikiapi: no pages returned")
-
-// ArticleSummary represents a Wikipedia page summary
-type ArticleSummary struct {
-	Title    string
-	Extract  string
-	ImageURL string
-	PageURL  string
-}
 
 // ToFact конвертирует ArticleSummary в entity.Fact.
 func (a *ArticleSummary) ToFact(lang string) *entity.Fact {
@@ -132,7 +119,7 @@ func WithMetrics(reg prometheus.Registerer) Option {
 }
 
 // NewClient creates a production-ready Client with sane defaults
-func NewClient(opts ...Option) *Client {
+func NewClient(opts ...Option) WikiClient {
 	// Default exponential backoff
 	retryPolicy := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), defaultMaxRetries)
 	client := &Client{

@@ -1,21 +1,21 @@
 http:
   host: "0.0.0.0"
-  port: 9292
+  port: 8181
 
   grpc_host: "0.0.0.0"
   grpc_port: 9191
 
   timeouts:
-    read:  "5s"    # максимальное время чтения запроса от клиента
+    read: "5s"    # максимальное время чтения запроса от клиента
     write: "10s"   # максимальное время записи ответа клиенту
-    idle:  "120s"  # время ожидания нового запроса на том же соединении
+    idle: "120s"  # время ожидания нового запроса на том же соединении
     shutdown_grace_period: "15s"  # время плавного выключения сервера
 
   # TLS настройка (опционально) !FUTURES!
   tls:
-    enabled:    true
-    cert_file:  "/etc/wikifeed/tls/server.crt"
-    key_file:   "/etc/wikifeed/tls/server.key"
+    enabled: true
+    cert_file: "/etc/wikifeed/tls/server.crt"
+    key_file: "/etc/wikifeed/tls/server.key"
 
   # CORS (Cross-Origin Resource Sharing) !FUTURES!
   cors:
@@ -42,8 +42,8 @@ http:
   endpoints:
     liveness: "/live"
     readiness: "/ready"
-    metrics:      "/metrics"
-    pprof:        "/debug/pprof/"
+    metrics: "/metrics"
+    pprof: "/debug/pprof/"
 
   # Логирование HTTP-запросов !FUTURES!
   logging:
