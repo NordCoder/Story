@@ -1,17 +1,17 @@
 package entity
 
-// CategoryConcept — концепт категории
+// CategoryConcept — unifies same categories in different languages
 type CategoryConcept struct {
 	ID          int
-	Key         string
-	Description string
+	Key         string // key in database
+	Description string // readable
 	I18ns       []*CategoryI18n
 }
 
-// CategoryI18n — локализация концепта
+// CategoryI18n — represents category in specified language
 type CategoryI18n struct {
 	ConceptID int
-	Lang      string
-	Title     string
-	Name      string
+	Lang      string // ru / en / de ...
+	Title     string // official name in wiki without 'Category:' prefix
+	Name      string // readable name
 }

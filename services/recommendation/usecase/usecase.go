@@ -1,8 +1,10 @@
 package usecase
 
 import (
+	"context"
 	"github.com/NordCoder/Story/internal/entity"
 	"github.com/NordCoder/Story/services/authorization/usecase"
+	"github.com/NordCoder/Story/services/prefetch/category"
 )
 
 // default zatychka
@@ -10,23 +12,22 @@ import (
 // todo design system that gonna fill redis with fresh categories from wiki
 
 type RecServiceImpl struct {
-	authService usecase.AuthService
+	authService      usecase.AuthService
+	categoryProvider category.Provider
 }
 
-func (i *RecServiceImpl) GetUserRec(req GetUserRecReq) (GetUserRecResp, error) {
-	ww2ru := &entity.CategoryI18n{ // hardcoded must be fetched from redis
-		ConceptID: 1,
-		Lang:      "ru",
-		Title:     "Вторая_мировая_война",
-		Name:      "Вторая_мировая_война",
+func NewRecService(authService usecase.AuthService, categoryProvider category.Provider) *RecServiceImpl {
+	return &RecServiceImpl{authService, categoryProvider}
+}
+
+func (i *RecServiceImpl) GetUserRec(ctx context.Context, req GetUserRecReq) (GetUserRecResp, error) {
+	cat, err := i.categoryProvider.GetCategory(ctx)
+
+	if err != nil {
+		return GetUserRecResp{}, err
 	}
-	ww2concept := &entity.CategoryConcept{
-		ID:          1,
-		Key:         "world-war-ii",
-		Description: "world-war-ii",
-		I18ns:       []*entity.CategoryI18n{ww2ru},
-	}
-	return GetUserRecResp{
-		recommendedCategories: []*entity.CategoryConcept{ww2concept},
-	}, nil
+
+	cats := []*entity.CategoryConcept{cat}
+
+	return GetUserRecResp{cats}, err
 }

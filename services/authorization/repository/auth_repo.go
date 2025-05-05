@@ -1,7 +1,9 @@
 package repository
 
+import "context"
+
 type AuthRepository interface {
-	GetSomeUserInfoSomeHow(userUUID string) (string, error)
+	GetSomeUserInfoSomeHow(ctx context.Context, userUUID string) (string, error)
 }
 
 type authRepositoryImpl struct {
@@ -12,6 +14,6 @@ func NewAuthRepository() AuthRepository {
 	return &authRepositoryImpl{}
 }
 
-func (i *authRepositoryImpl) GetSomeUserInfoSomeHow(userUUID string) (string, error) {
+func (i *authRepositoryImpl) GetSomeUserInfoSomeHow(ctx context.Context, userUUID string) (string, error) {
 	return "default", nil
 }

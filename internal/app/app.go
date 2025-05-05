@@ -1,7 +1,5 @@
 package app
 
-// TODO: someone has to work with logging 😓
-
 import (
 	"context"
 	"fmt"
@@ -10,11 +8,14 @@ import (
 	"github.com/NordCoder/Story/internal/controller"
 	"github.com/NordCoder/Story/internal/infrastructure/redis"
 	"github.com/NordCoder/Story/internal/infrastructure/wikipedia"
-	logger2 "github.com/NordCoder/Story/internal/logger"
+	mylogger "github.com/NordCoder/Story/internal/logger"
 	"github.com/NordCoder/Story/internal/usecase"
+	"github.com/NordCoder/Story/services/authorization/repository"
+	authusecase "github.com/NordCoder/Story/services/authorization/usecase"
 	"github.com/NordCoder/Story/services/prefetch"
 	"github.com/NordCoder/Story/services/prefetch/category"
-	config2 "github.com/NordCoder/Story/services/prefetch/config"
+	prefetcherconfig "github.com/NordCoder/Story/services/prefetch/config"
+	recusecase "github.com/NordCoder/Story/services/recommendation/usecase"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -40,9 +41,9 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Recoverer)
-	r.Use(logger2.PromMiddleware)
+	r.Use(mylogger.PromMiddleware)
 	r.Use(middleware.RequestID)
-	r.Use(logger2.LoggerMiddleware(logger))
+	r.Use(mylogger.LoggerMiddleware(logger))
 
 	r.Use(middleware.Timeout(parseDurationOr(httpCfg.Timeouts.Read, 5*time.Second) + parseDurationOr(httpCfg.Timeouts.Write, 10*time.Second)))
 
@@ -59,12 +60,6 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	r.Get(httpCfg.Endpoints.Metrics, promhttp.Handler().ServeHTTP)
 	r.Mount(httpCfg.Endpoints.Pprof, middleware.Profiler())
 
-	categories := []category2.Selection{
-		{Category: "History", Lang: "en"}, // todo: вынести куда-то, пока пример просто
-	}
-
-	provided := category.NewRandomCategoryProvider(categories)
-
 	wiki := wikipedia.NewClient()
 
 	redisClient, err := redis.NewRedisClient()
@@ -72,7 +67,9 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 		logger.Fatal("failed to start redis client", zap.Error(err))
 	}
 
-	factRepo := redis.NewFactRepository(redisClient, 5*time.Hour, provided)
+	transactor := redis.NewRedisTransactor(redisClient)
+
+	factRepo := redis.NewFactRepository(redisClient, 5*time.Hour)
 
 	// Лайвнесс: просто проверка, жив ли процесс
 	r.Get(httpCfg.Endpoints.Liveness, controller.LiveHandler)
@@ -87,19 +84,31 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	// Регистрируем обработчик /ready
 	readinessHandler.RegisterRoutes(r, httpCfg.Endpoints.Readiness)
 
-	prefetchConfig, err := config2.NewPrefetcherConfig()
-	if err != nil {
-		return err
-	}
-	prefetch.NewPrefetcher(prefetchConfig, wiki, factRepo, logger, provided)
+	// provider init
+	wwiiProvider := category.NewWWIICategoryProvider()
 
-	ctrl := controller.New(usecase.NewFactUseCase(factRepo))
+	// prefetcher init
+	prefetchConfig, err := prefetcherconfig.NewPrefetcherConfig()
+	if err != nil {
+		logger.Fatal("failed to start prefetcher", zap.Error(err))
+	}
+	prefetch.NewPrefetcher(prefetchConfig, wiki, factRepo, logger, wwiiProvider)
+
+	// main controller init
+	authRepo := repository.NewAuthRepository()
+	authService := authusecase.NewAuthService(authRepo)
+
+	recService := recusecase.NewRecService(authService, wwiiProvider)
+
+	ctrl := controller.New(usecase.NewFactUseCase(factRepo, transactor, recService))
 
 	grpcSrv := grpc.NewServer()
 	storypb.RegisterStoryServer(grpcSrv, ctrl)
+
+	// server start
 	lis, err := net.Listen("tcp", ":"+httpCfg.GrpcPort)
 	if err != nil {
-		return err
+		logger.Fatal("failed to start tcp listener", zap.Error(err))
 	}
 
 	go func() {
@@ -112,7 +121,7 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 
 	gw := runtime.NewServeMux()
 	if err := storypb.RegisterStoryHandlerFromEndpoint(ctx, gw, httpCfg.GrpcHost+":"+httpCfg.GrpcHost, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}); err != nil {
-		return err // todo it seems like a bullshit, maybe httpCfg.GrpcHost+":"+httpCfg.GrpcPort
+		return err
 	}
 	r.Mount("/", gw)
 

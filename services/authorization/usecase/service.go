@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"github.com/NordCoder/Story/services/authorization/repository"
 )
 
@@ -9,7 +10,7 @@ import (
 // todo vykupit jestko authorization and implement something
 
 type AuthService interface {
-	GetUserRecInfo(req GetUserRecInfoReq) (GetUserRecInfoResp, error)
+	GetUserRecInfo(ctx context.Context, req GetUserRecInfoReq) (GetUserRecInfoResp, error)
 }
 
 type GetUserRecInfoReq struct {
