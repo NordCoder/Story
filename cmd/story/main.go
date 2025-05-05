@@ -22,7 +22,6 @@ func main() {
 		}
 	}(log)
 
-	logger.InitMetrics()
 	httpCfg := config.NewHTTPConfig()
 
 	app.Run(httpCfg, log)

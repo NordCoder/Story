@@ -20,7 +20,7 @@ type Prefetcher interface {
 
 type prefetcher struct {
 	cfg              *config.PrefetcherConfig
-	wikipediaClient  *wikipedia.Client
+	wikipediaClient  wikipedia.WikiClient
 	factRepo         *redis.FactRepository
 	logger           *zap.Logger
 	categoryProvider category.Provider
@@ -29,7 +29,7 @@ type prefetcher struct {
 // NewPrefetcher создаёт новый экземпляр префетчера.
 func NewPrefetcher(
 	cfg *config.PrefetcherConfig,
-	wikipediaClient *wikipedia.Client,
+	wikipediaClient wikipedia.WikiClient,
 	factRepo *redis.FactRepository,
 	logger *zap.Logger,
 	categoryProvider category.Provider,

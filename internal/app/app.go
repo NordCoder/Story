@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/NordCoder/Story/config"
 	storypb "github.com/NordCoder/Story/generated/api/story"
@@ -29,19 +30,26 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // todo fix code: initialize auth / rec services and put it on work
 // todo create separate functions to create services
 
+func initMetrics() *mylogger.Metrics {
+	metrics := mylogger.NewMetrics()
+	metrics.Init()
+	return metrics
+}
+
 func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	ctx := context.Background()
+
+	metrics := initMetrics()
 
 	r := chi.NewRouter()
 
 	r.Use(middleware.Recoverer)
-	r.Use(mylogger.PromMiddleware)
+	r.Use(metrics.PromMiddleware)
 	r.Use(middleware.RequestID)
 	r.Use(mylogger.LoggerMiddleware(logger))
 
@@ -57,10 +65,10 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	//	}))
 	//}
 
-	r.Get(httpCfg.Endpoints.Metrics, promhttp.Handler().ServeHTTP)
+	r.Handle(httpCfg.Endpoints.Metrics, metrics.Handler())
 	r.Mount(httpCfg.Endpoints.Pprof, middleware.Profiler())
 
-	wiki := wikipedia.NewClient()
+	wiki := wikipedia.NewWikiMock()
 
 	redisClient, err := redis.NewRedisClient()
 	if err != nil {
@@ -133,6 +141,12 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 		WriteTimeout: parseDurationOr(httpCfg.Timeouts.Write, 10*time.Second),
 		IdleTimeout:  parseDurationOr(httpCfg.Timeouts.Idle, 120*time.Second),
 	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Fatal("HTTP server failed", zap.Error(err))
+		}
+	}()
 	logger.Info("HTTP server listening", zap.String("addr", addr))
 
 	//go func() { // todo understand this smart thing
