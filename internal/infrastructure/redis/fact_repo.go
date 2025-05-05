@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/NordCoder/Story/internal/infrastructure"
-	"github.com/NordCoder/Story/internal/infrastructure/category"
 	"github.com/NordCoder/Story/internal/logger"
+	"github.com/NordCoder/Story/services/prefetch/category"
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 	"time"
@@ -30,17 +30,16 @@ type FactRepository struct {
 	// Ключевые шаблоны — можно переопределить при инициализации, чтобы не жёстко фиксировать строки
 	keyFact          string // "fact:%s"  — Hash/JSON по ID
 	keyFeedQueue     string // "feed_queue" — Redis List с ID фактов
-	categoryProvider category.CategoryProvider
+	categoryProvider category.Provider
 }
 
 // NewFactRepository — гибкий конструктор
-func NewFactRepository(client *redis.Client, ttl time.Duration, categoryProvider category.CategoryProvider, opts ...Option) *FactRepository {
+func NewFactRepository(client *redis.Client, ttl time.Duration, opts ...Option) *FactRepository {
 	repo := &FactRepository{
-		client:           client,
-		ttl:              ttl,
-		keyFact:          "fact:%s",
-		keyFeedQueue:     "feed_queue",
-		categoryProvider: categoryProvider,
+		client:       client,
+		ttl:          ttl,
+		keyFact:      "fact:%s",
+		keyFeedQueue: "feed_queue",
 	}
 	for _, o := range opts {
 		o(repo)
@@ -52,9 +51,6 @@ type Option func(*FactRepository)
 
 func WithKeyFact(pattern string) Option   { return func(r *FactRepository) { r.keyFact = pattern } }
 func WithKeyFeedQueue(name string) Option { return func(r *FactRepository) { r.keyFeedQueue = name } }
-func WithCategoryProvider(provider category.CategoryProvider) Option {
-	return func(r *FactRepository) { r.categoryProvider = provider }
-}
 
 // Save сохраняет факт и одновременно пушит его ID в очередь feed_queue.
 // Операция атомарна, если вызывается внутри Transactor.WithTx.
@@ -81,6 +77,7 @@ func (r *FactRepository) Save(ctx context.Context, f *entity.Fact) error {
 // GetByID достаёт факт из Redis по ключу.
 func (r *FactRepository) GetByID(ctx context.Context, id entity.FactID) (*entity.Fact, error) {
 	cli := FromContext(ctx, r.client)
+
 	cmd := cli.Get(ctx, r.factKey(id))
 	if err := cmd.Err(); err != nil {
 		if errors.Is(err, redis.Nil) {

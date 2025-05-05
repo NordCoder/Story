@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/NordCoder/Story/internal/entity"
 	"github.com/NordCoder/Story/internal/infrastructure"
+	"github.com/NordCoder/Story/services/recommendation/usecase"
 )
 
 type FactUseCase interface {
@@ -13,10 +14,17 @@ type FactUseCase interface {
 type FactUseCaseImpl struct {
 	factRepo           infrastructure.FactRepository
 	factRepoTransactor infrastructure.Transactor
+
+	recService usecase.RecService
 }
 
-func NewFactUseCase(factRepo infrastructure.FactRepository) *FactUseCaseImpl {
-	return &FactUseCaseImpl{factRepo: factRepo}
+func NewFactUseCase(factRepo infrastructure.FactRepository, transactor infrastructure.Transactor, recService usecase.RecService) *FactUseCaseImpl {
+	return &FactUseCaseImpl{
+		factRepo:           factRepo,
+		factRepoTransactor: transactor,
+
+		recService: recService,
+	}
 }
 
 type GetFactInput struct{}
@@ -30,6 +38,9 @@ func (uc *FactUseCaseImpl) GetFact(ctx context.Context, input GetFactInput) (Get
 	err := uc.factRepoTransactor.WithTx(ctx, func(ctx context.Context) error {
 		var err error
 
+		// category, err := uc.recService.GetUserRec(usecase.GetUserRecReq{})
+
+		// todo get fact by category
 		fact, err = uc.factRepo.PopRandom(ctx)
 
 		if err != nil {
