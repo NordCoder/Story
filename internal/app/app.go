@@ -75,8 +75,6 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 		logger.Fatal("failed to start redis client", zap.Error(err))
 	}
 
-	transactor := redis.NewRedisTransactor(redisClient)
-
 	factRepo := redis.NewFactRepository(redisClient, 5*time.Hour)
 
 	// Лайвнесс: просто проверка, жив ли процесс
@@ -100,7 +98,13 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	if err != nil {
 		logger.Fatal("failed to start prefetcher", zap.Error(err))
 	}
-	prefetch.NewPrefetcher(prefetchConfig, wiki, factRepo, logger, wwiiProvider)
+	prefetcher := prefetch.NewPrefetcher(prefetchConfig, wiki, factRepo, logger, wwiiProvider)
+	go func() {
+		err = prefetcher.Run(ctx)
+		if err != nil {
+			logger.Fatal("failed to start prefetcher", zap.Error(err))
+		}
+	}()
 
 	// main controller init
 	authRepo := repository.NewAuthRepository()
@@ -108,7 +112,7 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 
 	recService := recusecase.NewRecService(authService, wwiiProvider)
 
-	ctrl := controller.New(usecase.NewFactUseCase(factRepo, transactor, recService))
+	ctrl := controller.New(usecase.NewFactUseCase(factRepo, recService))
 
 	grpcSrv := grpc.NewServer()
 	storypb.RegisterStoryServer(grpcSrv, ctrl)
@@ -128,7 +132,7 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	logger.Info("grpc server listening", zap.String("port", httpCfg.GrpcPort))
 
 	gw := runtime.NewServeMux()
-	if err := storypb.RegisterStoryHandlerFromEndpoint(ctx, gw, httpCfg.GrpcHost+":"+httpCfg.GrpcHost, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}); err != nil {
+	if err := storypb.RegisterStoryHandlerFromEndpoint(ctx, gw, httpCfg.GrpcHost+":"+httpCfg.GrpcPort, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}); err != nil {
 		return err
 	}
 	r.Mount("/", gw)

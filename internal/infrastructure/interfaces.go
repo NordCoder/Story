@@ -16,10 +16,6 @@ type FactRepository interface {
 	PopRandom(ctx context.Context) (*entity.Fact, error)
 }
 
-type Transactor interface {
-	WithTx(ctx context.Context, fn func(ctx context.Context) error) error
-}
-
 type FetchClient interface {
 	GetSummary(ctx context.Context, dto *FetchRequestDTO) (*FetchResponseDTO, error)
 }

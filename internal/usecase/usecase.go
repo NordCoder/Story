@@ -2,8 +2,10 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"github.com/NordCoder/Story/internal/entity"
 	"github.com/NordCoder/Story/internal/infrastructure"
+	"github.com/NordCoder/Story/internal/infrastructure/redis"
 	"github.com/NordCoder/Story/services/recommendation/usecase"
 )
 
@@ -12,16 +14,14 @@ type FactUseCase interface {
 }
 
 type FactUseCaseImpl struct {
-	factRepo           infrastructure.FactRepository
-	factRepoTransactor infrastructure.Transactor
+	factRepo infrastructure.FactRepository
 
 	recService usecase.RecService
 }
 
-func NewFactUseCase(factRepo infrastructure.FactRepository, transactor infrastructure.Transactor, recService usecase.RecService) *FactUseCaseImpl {
+func NewFactUseCase(factRepo infrastructure.FactRepository, recService usecase.RecService) *FactUseCaseImpl {
 	return &FactUseCaseImpl{
-		factRepo:           factRepo,
-		factRepoTransactor: transactor,
+		factRepo: factRepo,
 
 		recService: recService,
 	}
@@ -33,22 +33,24 @@ type GetFactOutput struct {
 }
 
 func (uc *FactUseCaseImpl) GetFact(ctx context.Context, input GetFactInput) (GetFactOutput, error) {
-	var fact *entity.Fact
+	// category, err := uc.recService.GetUserRec(usecase.GetUserRecReq{})
 
-	err := uc.factRepoTransactor.WithTx(ctx, func(ctx context.Context) error {
-		var err error
+	// todo get fact by category
+	fact, err := uc.factRepo.PopRandom(ctx)
 
-		// category, err := uc.recService.GetUserRec(usecase.GetUserRecReq{})
-
-		// todo get fact by category
-		fact, err = uc.factRepo.PopRandom(ctx)
-
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
+	if errors.Is(err, redis.ErrNotFound) || errors.Is(err, redis.ErrQueueEmpty) {
+		// it is sign that prefetcher must work faster
+		return GetFactOutput{
+			entity.Fact{
+				ID:        "-1",
+				Title:     "FUN FACT",
+				Summary:   "we currently don't have any facts ready...",
+				ImageURL:  "",
+				SourceURL: "",
+				Lang:      "en",
+			},
+		}, nil
+	}
 
 	if err != nil {
 		return GetFactOutput{}, err
