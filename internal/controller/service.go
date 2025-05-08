@@ -1,7 +1,7 @@
 package controller
 
 import (
-	storypb "github.com/NordCoder/Story/generated/api/story"
+	storypb "github.com/NordCoder/Story/generated/api/proto/v1"
 	"github.com/NordCoder/Story/internal/usecase"
 )
 

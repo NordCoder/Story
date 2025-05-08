@@ -3,7 +3,7 @@ package usecase
 import (
 	"context"
 	"github.com/NordCoder/Story/internal/entity"
-	"github.com/NordCoder/Story/services/authorization/usecase"
+	"github.com/NordCoder/Story/services/authorization/controller"
 	"github.com/NordCoder/Story/services/prefetch/category"
 )
 
@@ -12,11 +12,11 @@ import (
 // todo design system that gonna fill redis with fresh categories from wiki
 
 type RecServiceImpl struct {
-	authService      usecase.AuthService
+	authService      controller.AuthService
 	categoryProvider category.Provider
 }
 
-func NewRecService(authService usecase.AuthService, categoryProvider category.Provider) *RecServiceImpl {
+func NewRecService(authService controller.AuthService, categoryProvider category.Provider) *RecServiceImpl {
 	return &RecServiceImpl{authService, categoryProvider}
 }
 
