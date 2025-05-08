@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+const prefetcherConfigPath = "prefetch.yaml"
+
 type PrefetcherConfig struct {
 	Enabled         bool          `mapstructure:"enabled"`
 	Interval        time.Duration `mapstructure:"interval"`
@@ -14,7 +16,7 @@ type PrefetcherConfig struct {
 }
 
 func NewPrefetcherConfig() (*PrefetcherConfig, error) {
-	viper.SetConfigFile("config/prefetch.yaml")
+	viper.SetConfigFile(prefetcherConfigPath)
 
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err

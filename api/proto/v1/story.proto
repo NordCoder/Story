@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package story;
+package api.v1;
 
-option go_package = "https://github.com/NordCoder/Story;storypb";
+option go_package = "https://github.com/NordCoder/Story/api/gen/v1;apiv1";
 
 import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";

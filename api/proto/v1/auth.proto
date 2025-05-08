@@ -1,0 +1,71 @@
+syntax = "proto3";
+package api.v1;
+option go_package = "github.com/NordCoder/Story/api/gen/v1;apiv1";
+
+import "google/api/annotations.proto";
+import "validate/validate.proto";
+
+service AuthService {
+  rpc Register(RegisterRequest) returns (RegisterResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/register"
+      body: "*"
+    };
+  }
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/login"
+      body: "*"
+    };
+  }
+  rpc Refresh(RefreshRequest) returns (RefreshResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/refresh"
+      body: "*"
+    };
+  }
+  rpc Logout(LogoutRequest) returns (LogoutResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/logout"
+      body: "*"
+    };
+  }
+}
+
+message RegisterRequest {
+  string username = 1 [(validate.rules).string = {min_len: 3, max_len: 50, pattern: "^[a-zA-Z0-9_]+$"}];
+  string password = 2 [(validate.rules).string = {min_len: 8, max_len: 128}];
+}
+
+message RegisterResponse {
+  string user_id = 1;
+}
+
+message LoginRequest {
+  string username = 1 [(validate.rules).string = {min_len: 3, max_len: 50, pattern: "^[a-zA-Z0-9_]+$"}];
+  string password = 2 [(validate.rules).string = {min_len: 8, max_len: 128}];
+}
+
+message LoginResponse {
+  string access_token  = 1;
+  int64  expires_in    = 2;
+  string refresh_token = 3;
+}
+
+message RefreshRequest {
+  string refresh_token = 1 [(validate.rules).string = {uuid: true}];
+}
+
+message RefreshResponse {
+  string access_token  = 1;
+  int64  expires_in    = 2;
+  string refresh_token = 3;
+}
+
+message LogoutRequest {
+  string refresh_token = 1 [(validate.rules).string = {uuid: true}];
+}
+
+message LogoutResponse {
+  bool success = 1;
+}
