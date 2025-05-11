@@ -7,3 +7,13 @@ auth:
 
   # Время жизни refresh-токена (долгоживущий, например 7 дней = 168 часов)
   refresh_token_ttl: "168h"
+db:
+  host: "localhost"
+  port: 5432
+  user: "appuser"
+  password: "secret"
+  name: "storydb"
+  sslmode: "disable"
+  max_open_conns: 10
+  max_idle_conns: 5
+  conn_max_lifetime: "30m"

@@ -18,13 +18,17 @@ import (
 	"github.com/NordCoder/Story/internal/infrastructure/wikipedia"
 	mylogger "github.com/NordCoder/Story/internal/logger"
 	"github.com/NordCoder/Story/internal/usecase"
-	authusecase "github.com/NordCoder/Story/services/authorization/controller"
+	config2 "github.com/NordCoder/Story/services/authorization/config"
+	controller2 "github.com/NordCoder/Story/services/authorization/controller"
+	"github.com/NordCoder/Story/services/authorization/db"
 	"github.com/NordCoder/Story/services/authorization/repository"
+	authusecase "github.com/NordCoder/Story/services/authorization/usecase"
 	"github.com/NordCoder/Story/services/prefetch"
 	"github.com/NordCoder/Story/services/prefetch/category"
 	prefetcherconfig "github.com/NordCoder/Story/services/prefetch/config"
 	recusecase "github.com/NordCoder/Story/services/recommendation/usecase"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -96,7 +100,7 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	// provider init
 	wwiiProvider := category.NewWWIICategoryProvider()
 
-	// prefetcher init
+	//prefetcher init
 	prefetchConfig, err := prefetcherconfig.NewPrefetcherConfig()
 	if err != nil {
 		logger.Fatal("failed to start prefetcher", zap.Error(err))
@@ -104,8 +108,25 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	prefetch.NewPrefetcher(prefetchConfig, wiki, factRepo, logger, wwiiProvider)
 
 	// main controller init
-	authRepo := repository.NewAuthRepository()
-	authService := authusecase.NewAuthService(authRepo)
+	cfg, err := config2.NewAuthConfig()
+	if err != nil {
+		logger.Fatal("failed to get auth config", zap.Error(err))
+	}
+
+	dbPool, err := pgxpool.New(ctx, cfg.DB.URL)
+
+	if err != nil {
+		logger.Error("can not create pgxpool", zap.Error(err))
+		return errors.New("can not create pgxpool")
+	}
+
+	defer dbPool.Close()
+
+	db.SetupPostgres(dbPool, logger)
+
+	authRepo := repository.NewAuthRepository(dbPool)
+	refreshTokenRepo := repository.NewRefreshTokenRepository(redisClient, cfg.RefreshTokenTTL)
+	authService := controller2.NewAuthService(authusecase.NewAuthUseCaseImpl(authRepo, refreshTokenRepo, cfg))
 
 	recService := recusecase.NewRecService(authService, wwiiProvider)
 

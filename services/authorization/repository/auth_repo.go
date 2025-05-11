@@ -1,16 +1,15 @@
 package repository
 
+// TODO добавить миграции
+
 import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/NordCoder/Story/services/authorization/entity"
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-// TODO добавить миграции
 
 type authRepositoryImpl struct {
 	db *pgxpool.Pool
@@ -38,9 +37,9 @@ func (a *authRepositoryImpl) FindByUsername(ctx context.Context, username string
 	row := a.db.QueryRow(ctx, q, username)
 	var u entity.User
 	if err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.CreatedAt); err != nil {
-		if errors.Is(err, pgxpool.ErrNoRows) {
-			return nil, entity.ErrUserNotFound
-		}
+		//if errors.Is(err, pgxpool.ErrNoRows) {
+		//	return nil, entity.ErrUserNotFound
+		//}
 		return nil, fmt.Errorf("select user: %w", err)
 	}
 	return &u, nil
