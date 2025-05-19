@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+
 	"github.com/NordCoder/Story/services/authorization/repository"
 )
 

@@ -3,8 +3,9 @@ package category
 import (
 	"context"
 	"fmt"
-	"github.com/NordCoder/Story/internal/entity"
 	"math/rand"
+
+	"github.com/NordCoder/Story/internal/entity"
 )
 
 // RandomCategoryProvider выбирает случайную категорию и язык из списка.
