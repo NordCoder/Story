@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/NordCoder/Story/internal/entity"
-	"github.com/cenkalti/backoff/v4"
 	"io"
 	"net/http"
 	"net/url"
 	"sort"
 	"time"
+
+	"github.com/NordCoder/Story/internal/entity"
+	"github.com/cenkalti/backoff/v4"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"

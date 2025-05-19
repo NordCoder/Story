@@ -2,8 +2,9 @@ package entity
 
 import (
 	"errors"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // FactID — уникальный идентификатор факта (UUID v4).

@@ -3,9 +3,10 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"github.com/go-chi/chi/v5"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // DependencyChecker описывает интерфейс для проверки зависимости.

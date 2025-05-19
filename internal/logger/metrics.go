@@ -1,15 +1,16 @@
 package logger
 
 import (
+	"net/http"
+	"strconv"
+	"sync"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"net/http"
-	"strconv"
-	"sync"
-	"time"
 )
 
 type Metrics struct {

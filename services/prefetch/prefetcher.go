@@ -2,9 +2,10 @@ package prefetch
 
 import (
 	"context"
+	"time"
+
 	"github.com/NordCoder/Story/services/prefetch/category"
 	"github.com/NordCoder/Story/services/prefetch/config"
-	"time"
 
 	"github.com/NordCoder/Story/internal/infrastructure/redis"
 	"github.com/NordCoder/Story/internal/infrastructure/wikipedia"

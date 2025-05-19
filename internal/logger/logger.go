@@ -2,13 +2,14 @@ package logger
 
 import (
 	"context"
+	"net/http"
+	"os"
+
 	"github.com/NordCoder/Story/config"
 	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"net/http"
-	"os"
 )
 
 type ctxLoggerKey struct{}

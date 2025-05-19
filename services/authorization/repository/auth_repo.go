@@ -1,23 +1,16 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"fmt"
+
 	"github.com/NordCoder/Story/services/authorization/entity"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // TODO добавить миграции
-
-import (
-	"context"
-	"errors"
-	"fmt"
-	"github.com/NordCoder/Story/services/authorization/entity"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4/pgxpool"
-)
 
 type authRepositoryImpl struct {
 	db *pgxpool.Pool
