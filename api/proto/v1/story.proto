@@ -1,8 +1,6 @@
 syntax = "proto3";
-
-package story;
-
-option go_package = "https://github.com/NordCoder/Story;storypb";
+package api.v1;
+option go_package = "https://github.com/NordCoder/Story/api/gen/v1;apiv1";
 
 import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
@@ -17,9 +15,10 @@ service Story {
 
 message Fact {
   string title    = 1;
-  string summary  = 2;
-  string wiki_url = 3;
-  string img_url  = 4;
+  string category = 2;
+  string summary  = 3;
+  string wiki_url = 4;
+  string img_url  = 5;
 }
 
 message GetFactResponse {

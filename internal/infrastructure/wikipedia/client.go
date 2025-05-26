@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/NordCoder/Story/internal/entity"
@@ -31,14 +32,14 @@ const (
 )
 
 // ToFact конвертирует ArticleSummary в entity.Fact.
-func (a *ArticleSummary) ToFact(lang string) *entity.Fact {
+func (a *ArticleSummary) ToFact(category entity.Category) *entity.Fact {
 	return &entity.Fact{
 		ID:        entity.NewFactID(), // создаём новый уникальный ID
 		Title:     a.Title,
+		Category:  category,
 		Summary:   trimSummary(a.Extract), // обрезаем до 280 символов
 		ImageURL:  a.ImageURL,
 		SourceURL: a.PageURL,
-		Lang:      lang,
 		FetchedAt: time.Now(), // ставим текущее время
 	}
 }
@@ -192,11 +193,11 @@ func (c *Client) doRequest(ctx context.Context, params url.Values, out interface
 }
 
 // GetCategorySummaries retrieves up to limit summaries via generator=categorymembers
-func (c *Client) GetCategorySummaries(ctx context.Context, category string, limit int) ([]*ArticleSummary, error) {
+func (c *Client) GetCategorySummaries(ctx context.Context, category entity.Category, limit int) ([]*ArticleSummary, error) {
 	params := url.Values{
 		"action":       {"query"},
 		"generator":    {"categorymembers"},
-		"gcmtitle":     {"Category:" + category},
+		"gcmtitle":     {"Category:" + string(category)},
 		"gcmnamespace": {"0"},
 		"gcmlimit":     {fmt.Sprint(limit)},
 		"prop":         {"extracts|pageimages"},
@@ -247,13 +248,14 @@ func (c *Client) GetCategorySummaries(ctx context.Context, category string, limi
 		}
 		summaries = append(summaries, &ArticleSummary{
 			Title:    p.Title,
+			Category: category,
 			Extract:  p.Extract,
 			ImageURL: p.Thumbnail.Source,
 			PageURL:  pageURL,
 		})
 	}
 
-	c.logger.Info("fetched category summaries", zap.String("category", category), zap.Int("count", len(summaries)))
+	c.logger.Info("fetched category summaries", zap.String("category", string(category)), zap.Int("count", len(summaries)))
 	return summaries, nil
 }
 
@@ -261,4 +263,38 @@ func (c *Client) Ping(ctx context.Context) error {
 	// Мы не реально проверяем Wikipedia API, поэтому считаем, что всё ок.
 	// Можно позже реализовать реальный ping через запрос siteinfo.
 	return nil
+}
+
+// GetSubcategories retrieves up to limit subcategories of the given category title.
+func (c *Client) GetSubcategories(ctx context.Context, category entity.Category, limit int) ([]entity.Category, error) {
+	params := url.Values{
+		"action":  {"query"},
+		"list":    {"categorymembers"},
+		"cmtitle": {"Category:" + string(category)},
+		"cmtype":  {"subcat"},
+		"cmlimit": {fmt.Sprint(limit)},
+	}
+
+	var resp struct {
+		Query struct {
+			CategoryMembers []struct {
+				Title string `json:"title"`
+			} `json:"categorymembers"`
+		} `json:"query"`
+		Error *struct{ Code, Info string } `json:"error,omitempty"`
+	}
+
+	if err := c.doRequest(ctx, params, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Error != nil {
+		return nil, fmt.Errorf("wikiapi error %s: %s", resp.Error.Code, resp.Error.Info)
+	}
+
+	names := make([]entity.Category, len(resp.Query.CategoryMembers))
+	for i, m := range resp.Query.CategoryMembers {
+		// strip the "Category:" prefix
+		names[i] = entity.Category(strings.TrimPrefix(m.Title, "Category:"))
+	}
+	return names, nil
 }

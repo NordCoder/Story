@@ -88,20 +88,21 @@ func (p *prefetcher) prefetch(ctx context.Context) error {
 		return nil
 	}
 
+	//todo: add default provider logic
 	concept, err := p.categoryProvider.GetCategory(ctx)
 	if err != nil {
 		p.logger.Error("Failed to get category", zap.Error(err))
 		return err
 	}
 	// todo think how we choose between languages
-	summaries, err := p.wikipediaClient.GetCategorySummaries(ctx, concept.I18ns[0].Title, p.cfg.BatchSize)
+	summaries, err := p.wikipediaClient.GetCategorySummaries(ctx, concept, p.cfg.BatchSize)
 	if err != nil {
-		p.logger.Warn("Failed to fetch summaries from Wikipedia", zap.Error(err))
+		p.logger.Error("Failed to fetch summaries from Wikipedia", zap.Error(err))
 		return err
 	}
 
 	for _, summary := range summaries {
-		fact := summary.ToFact(concept.I18ns[0].Lang) // Конвертация ArticleSummary -> Fact
+		fact := summary.ToFact(concept) // Конвертация ArticleSummary -> Fact
 
 		if err := p.factRepo.Save(ctx, fact); err != nil {
 			p.logger.Warn("Failed to save fact", zap.Error(err))

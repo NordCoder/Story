@@ -3,9 +3,15 @@ package wikipedia
 import (
 	"context"
 	"fmt"
+	"github.com/NordCoder/Story/internal/entity"
 )
 
 type wikiMock struct{}
+
+func (w *wikiMock) GetSubcategories(ctx context.Context, category entity.Category, limit int) ([]entity.Category, error) {
+	//TODO implement me
+	panic("implement me")
+}
 
 // NewWikiMock создаёт новый экземпляр заглушки
 func NewWikiMock() WikiClient {
@@ -14,7 +20,7 @@ func NewWikiMock() WikiClient {
 
 // GetCategorySummaries отдаёт до limit статей для заданной категории.
 // Поддерживаем три популярных категории: Вторая мировая война, Go (язык), Машинное обучение.
-func (w *wikiMock) GetCategorySummaries(ctx context.Context, category string, limit int) ([]*ArticleSummary, error) {
+func (w *wikiMock) GetCategorySummaries(ctx context.Context, category entity.Category, limit int) ([]*ArticleSummary, error) {
 	var items []*ArticleSummary
 
 	switch category {
