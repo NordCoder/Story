@@ -8,7 +8,7 @@ auth:
   # Время жизни refresh-токена (долгоживущий, например 7 дней = 168 часов)
   refresh_token_ttl: "168h"
 db:
-  host: "localhost"
+  host: "db"
   port: 5432
   user: "appuser"
   password: "secret"

@@ -55,22 +55,21 @@ func NewAuthUseCaseImpl(userRepo repository.UserRepository, sessionRepo reposito
 
 func (u *AuthUseCaseImpl) Register(ctx context.Context, username, password string) (*apiv1.RegisterResponse, error) {
 	logger.LoggerFromContext(ctx).Info("Registering user")
-	id := uuid.New().String()
+
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		logger.LoggerFromContext(ctx).Info("failed to hash password", zap.Error(err))
 		return nil, err
 	}
 	user := &entity.User{
-		ID:           entity.UserID(id),
 		Username:     username,
 		PasswordHash: string(hashed),
 	}
-	if err = u.userRepo.Create(ctx, user); err != nil {
+	if user.ID, err = u.userRepo.Create(ctx, user); err != nil {
 		logger.LoggerFromContext(ctx).Info("failed to create user", zap.Error(err))
 		return nil, err
 	}
-	return &apiv1.RegisterResponse{UserId: id}, nil
+	return &apiv1.RegisterResponse{UserId: string(user.ID)}, nil
 }
 
 func (u *AuthUseCaseImpl) Login(ctx context.Context, username, password string) (*apiv1.LoginResponse, error) {
@@ -82,7 +81,7 @@ func (u *AuthUseCaseImpl) Login(ctx context.Context, username, password string) 
 	}
 	if err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
 		logger.LoggerFromContext(ctx).Info("failed to compare password", zap.Error(err))
-		return nil, err
+		return nil, entity.ErrInvalidPassword
 	}
 
 	accessStr, expiresIn, err := u.generateAccessToken(user.ID)
@@ -131,6 +130,8 @@ func (u *AuthUseCaseImpl) Refresh(ctx context.Context, oldRefreshToken string) (
 		RefreshToken: newRefreshToken,
 	}, nil
 }
+
+// todo: make sense to delete from bd also
 
 func (u *AuthUseCaseImpl) Logout(ctx context.Context, refreshToken string) (*apiv1.LogoutResponse, error) {
 	logger.LoggerFromContext(ctx).Info("Logging out user")

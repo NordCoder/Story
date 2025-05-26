@@ -2,12 +2,13 @@ package config
 
 import (
 	"fmt"
-	"github.com/spf13/viper"
 	"net"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
-const configFileName = "services/authorization/config/auth.yaml"
+const configFileName = "config/auth.yaml"
 
 // AuthConfig содержит настройки авторизации и подключения к БД.
 type AuthConfig struct {

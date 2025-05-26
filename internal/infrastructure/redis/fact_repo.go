@@ -66,13 +66,22 @@ func (r *FactRepository) Save(ctx context.Context, f *entity.Fact) error {
 	if pipe, ok := cli.(redis.Pipeliner); ok {
 		pipe.Set(ctx, r.factKey(f.ID), data, r.ttl)
 		pipe.LPush(ctx, r.keyFeedQueue, string(f.ID))
+		// Index by category
+		pipe.SAdd(ctx, fmt.Sprintf("category_set:%s", f.Category), string(f.ID))
 		return nil
 	}
 
 	if err := cli.Set(ctx, r.factKey(f.ID), data, r.ttl).Err(); err != nil {
 		return err
 	}
-	return cli.LPush(ctx, r.keyFeedQueue, string(f.ID)).Err()
+	if err := cli.LPush(ctx, r.keyFeedQueue, string(f.ID)).Err(); err != nil {
+		return err
+	}
+	// Index by category
+	if err := cli.SAdd(ctx, fmt.Sprintf("category_set:%s", f.Category), string(f.ID)).Err(); err != nil {
+		logger.LoggerFromContext(ctx).Error("failed to add fact ID to category set", zap.Error(err))
+	}
+	return nil
 }
 
 // GetByID достаёт факт из Redis по ключу.
@@ -82,7 +91,7 @@ func (r *FactRepository) GetByID(ctx context.Context, id entity.FactID) (*entity
 	cmd := cli.Get(ctx, r.factKey(id))
 	if err := cmd.Err(); err != nil {
 		if errors.Is(err, redis.Nil) {
-			return nil, entity.ErrNotFound
+			return nil, entity.ErrFactNotFound
 		}
 		return nil, err
 	}
@@ -91,6 +100,43 @@ func (r *FactRepository) GetByID(ctx context.Context, id entity.FactID) (*entity
 		return nil, err
 	}
 	return &f, nil
+}
+
+// GetByCategory returns up to count facts for the given category.
+func (r *FactRepository) GetByCategory(ctx context.Context, category entity.Category, count int) ([]*entity.Fact, error) {
+	cli := FromContext(ctx, r.client)
+
+	// Получаем случайные ID из множества
+	ids, err := cli.SRandMemberN(ctx, fmt.Sprintf("category_set:%s", category), int64(count)).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch IDs for category %s: %w", category, err)
+	}
+
+	if len(ids) == 0 {
+		logger.LoggerFromContext(ctx).Info("Add category to provider: " + string(category))
+		err := r.categoryProvider.AddCategory(ctx, category)
+		if err != nil {
+			logger.LoggerFromContext(ctx).Error("failed to add category to provider", zap.Error(err))
+			return nil, err
+		}
+		return nil, entity.ErrCategoryNotFound
+	}
+
+	var facts []*entity.Fact
+	for _, idStr := range ids {
+		f, err := r.GetByID(ctx, entity.FactID(idStr))
+		if err != nil {
+			if errors.Is(err, entity.ErrFactNotFound) {
+				// просто удаляем «висячий» ID
+				//todo: logging and handle error
+				cli.SRem(ctx, "category_set:"+string(category), idStr)
+				continue
+			}
+			return nil, err
+		}
+		facts = append(facts, f)
+	}
+	return facts, nil
 }
 
 func (r *FactRepository) PopRandom(ctx context.Context) (*entity.Fact, error) {

@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const prefetcherConfigPath = "prefetch.yaml"
+const prefetcherConfigPath = "config/prefetch.yaml"
 
 type PrefetcherConfig struct {
 	Enabled         bool          `mapstructure:"enabled"`

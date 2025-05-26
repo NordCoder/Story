@@ -6,8 +6,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/NordCoder/Story/services/authorization/entity"
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -19,17 +21,23 @@ func NewAuthRepository(pool *pgxpool.Pool) UserRepository {
 	return &authRepositoryImpl{db: pool}
 }
 
-func (a *authRepositoryImpl) Create(ctx context.Context, u *entity.User) error {
-	const q = `INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)`
-	_, err := a.db.Exec(ctx, q, u.ID, u.Username, u.PasswordHash, u.CreatedAt)
+func (a *authRepositoryImpl) Create(ctx context.Context, u *entity.User) (entity.UserID, error) {
+	const q = `INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id`
+	var id entity.UserID
+	err := a.db.QueryRow(ctx, q, u.Username, u.PasswordHash).Scan(&id)
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return entity.ErrUsernameTaken
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case pgerrcode.UniqueViolation: // todo: i dont know why, it is not mapping(
+				if pgErr.ConstraintName == "users_username_key" {
+					return id, entity.ErrUsernameTaken
+				}
+			}
 		}
-		return fmt.Errorf("insert user: %w", err)
+		return id, fmt.Errorf("insert user: %w", err)
 	}
-	return nil
+	return id, nil
 }
 
 func (a *authRepositoryImpl) FindByUsername(ctx context.Context, username string) (*entity.User, error) {

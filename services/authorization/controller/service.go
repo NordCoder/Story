@@ -1,6 +1,7 @@
 package controller
 
 // TODO разбить по файлам мб
+// todo: error mapping mb
 
 import (
 	"context"

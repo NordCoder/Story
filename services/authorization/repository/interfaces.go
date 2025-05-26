@@ -10,7 +10,7 @@ import (
 // UserRepository defines operations for managing user accounts.
 type UserRepository interface {
 	// Create inserts a new user into the system.
-	Create(ctx context.Context, u *entity.User) error
+	Create(ctx context.Context, u *entity.User) (entity.UserID, error)
 
 	// FindByUsername retrieves a user by username.
 	// Returns ErrUserNotFound if no such user exists.

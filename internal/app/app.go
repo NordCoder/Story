@@ -11,6 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	controller3 "github.com/NordCoder/Story/services/recommendation/controller"
+	repository2 "github.com/NordCoder/Story/services/recommendation/repository"
+
+	auth "github.com/NordCoder/Story/services/authorization/transport/http"
+	"google.golang.org/grpc/metadata"
+
 	"github.com/NordCoder/Story/config"
 	storypb "github.com/NordCoder/Story/generated/api/proto/v1"
 	"github.com/NordCoder/Story/internal/controller"
@@ -48,6 +54,11 @@ func initMetrics() *mylogger.Metrics {
 
 func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	ctx := context.Background()
+
+	authCfg, err := config2.NewAuthConfig()
+	if err != nil {
+		logger.Fatal("failed to get auth config", zap.Error(err))
+	}
 
 	metrics := initMetrics()
 
@@ -94,6 +105,8 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	readinessHandler.AddDependency("redis", factRepo)
 	readinessHandler.AddDependency("wikipedia", wiki)
 
+	//todo: add auth to dep in readiness handler
+
 	// Регистрируем обработчик /ready
 	readinessHandler.RegisterRoutes(r, httpCfg.Endpoints.Readiness)
 
@@ -105,15 +118,10 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	if err != nil {
 		logger.Fatal("failed to start prefetcher", zap.Error(err))
 	}
-	prefetch.NewPrefetcher(prefetchConfig, wiki, factRepo, logger, wwiiProvider)
+	prefetcher := prefetch.NewPrefetcher(prefetchConfig, wiki, factRepo, logger, wwiiProvider)
+	go func() { prefetcher.Run(ctx) }()
 
-	// main controller init
-	cfg, err := config2.NewAuthConfig()
-	if err != nil {
-		logger.Fatal("failed to get auth config", zap.Error(err))
-	}
-
-	dbPool, err := pgxpool.New(ctx, cfg.DB.URL)
+	dbPool, err := pgxpool.New(ctx, authCfg.DB.URL)
 
 	if err != nil {
 		logger.Error("can not create pgxpool", zap.Error(err))
@@ -125,16 +133,21 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	db.SetupPostgres(dbPool, logger)
 
 	authRepo := repository.NewAuthRepository(dbPool)
-	refreshTokenRepo := repository.NewRefreshTokenRepository(redisClient, cfg.RefreshTokenTTL)
-	authService := controller2.NewAuthService(authusecase.NewAuthUseCaseImpl(authRepo, refreshTokenRepo, cfg))
+	refreshTokenRepo := repository.NewRefreshTokenRepository(redisClient, authCfg.RefreshTokenTTL)
+	authService := controller2.NewAuthService(authusecase.NewAuthUseCaseImpl(authRepo, refreshTokenRepo, authCfg))
 
-	recService := recusecase.NewRecService(authService, wwiiProvider)
+	recRepo := repository2.NewRecRepository(dbPool)
+	recService := controller3.NewRecService(recusecase.NewRecUseCase(recRepo))
 
 	ctrl := controller.New(usecase.NewFactUseCase(factRepo, transactor, recService))
 
-	grpcSrv := grpc.NewServer()
+	grpcSrv := grpc.NewServer(
+		grpc.UnaryInterceptor(auth.UnaryInterceptor(authCfg.JWTSecret)),
+	)
+	//todo: think about this thing
 	storypb.RegisterStoryServer(grpcSrv, ctrl)
-
+	storypb.RegisterAuthServiceServer(grpcSrv, authService)
+	storypb.RegisterRecommendationServer(grpcSrv, recService)
 	// server start
 	lis, err := net.Listen("tcp", ":"+httpCfg.GrpcPort)
 	if err != nil {
@@ -149,11 +162,34 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	}()
 	logger.Info("grpc server listening", zap.String("port", httpCfg.GrpcPort))
 
-	gw := runtime.NewServeMux()
-	if err := storypb.RegisterStoryHandlerFromEndpoint(ctx, gw, httpCfg.GrpcHost+":"+httpCfg.GrpcHost, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}); err != nil {
+	gw := runtime.NewServeMux(runtime.WithMetadata(func(ctx context.Context, r *http.Request) metadata.MD {
+		if uid, err := auth.UserIDFromCtx(r.Context()); err == nil {
+			return metadata.Pairs("user-id", string(uid))
+		}
+		return nil
+	}))
+	if err := storypb.RegisterStoryHandlerFromEndpoint(ctx, gw, httpCfg.GrpcHost+":"+httpCfg.GrpcPort, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}); err != nil {
+		logger.Error("grpc-gateway story registration failed", zap.Error(err))
 		return err
 	}
-	r.Mount("/", gw)
+	if err := storypb.RegisterAuthServiceHandlerFromEndpoint(ctx, gw, httpCfg.GrpcHost+":"+httpCfg.GrpcPort, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}); err != nil {
+		logger.Error("grpc-gateway auth registration failed", zap.Error(err))
+		return err
+	}
+
+	if err := storypb.RegisterRecommendationHandlerFromEndpoint(ctx, gw, httpCfg.GrpcHost+":"+httpCfg.GrpcPort, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}); err != nil {
+		logger.Error("grpc-gateway recommendation registration failed", zap.Error(err))
+		return err
+	}
+
+	// Public routes: auth
+	r.Mount("/v1/auth", gw)
+
+	// Protected Story routes
+	r.With(auth.HTTPMiddleware(authCfg.JWTSecret)).Mount("/v1/story", gw)
+
+	// Protected Recommendation routes
+	r.With(auth.HTTPMiddleware(authCfg.JWTSecret)).Mount("/v1/recommendations", gw)
 
 	addr := fmt.Sprintf("%s:%s", httpCfg.Host, httpCfg.Port)
 	srv := &http.Server{

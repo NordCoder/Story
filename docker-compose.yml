@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   redis:
     image: redis:7-alpine
@@ -10,9 +11,9 @@ services:
     image: postgres:15-alpine
     container_name: wikifeed-db
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-appuser}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secret}
-      - POSTGRES_DB=${POSTGRES_DB:-storydb}
+      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+      POSTGRES_DB: ${POSTGRES_DB:-storydb}
     ports:
       - "${POSTGRES_PORT:-5432}:${POSTGRES_PORT:-5432}"
     volumes:

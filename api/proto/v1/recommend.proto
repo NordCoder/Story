@@ -1,0 +1,32 @@
+syntax = "proto3";
+package api.v1;
+option go_package = "https://github.com/NordCoder/Story/api/gen/v1;apiv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "validate/validate.proto";
+
+// RecommendationService — публичный API для лайка/анлайка категорий.
+service Recommendation {
+  // Поставить лайк категории.
+  rpc LikeCategory(CategoryActionRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/recommendations/like"
+      body: "*"
+    };
+  }
+
+  // Снять лайк категории.
+  rpc UnlikeCategory(CategoryActionRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/recommendations/unlike"
+      body: "*"
+    };
+  }
+}
+
+// CategoryActionRequest — универсальный запрос для Like/Unlike.
+message CategoryActionRequest {
+  // Название категории, над которой производится действие.
+  string category = 2 [(validate.rules).string = {min_len: 1}];
+}

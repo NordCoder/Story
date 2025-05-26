@@ -8,7 +8,8 @@ import (
 
 // Provider отвечает за выбор категории и языка.
 type Provider interface {
-	GetCategory(ctx context.Context) (*entity.CategoryConcept, error)
-	GetCategories(ctx context.Context) ([]*entity.CategoryConcept, error)
-	SetCategories(ctx context.Context, category []*entity.CategoryConcept) error
+	GetCategory(ctx context.Context) (entity.Category, error)
+	GetCategories(ctx context.Context) ([]entity.Category, error)
+	SetCategories(ctx context.Context, category []entity.Category) error
+	AddCategory(ctx context.Context, category entity.Category) error
 }

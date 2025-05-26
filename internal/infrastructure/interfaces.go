@@ -9,12 +9,13 @@ import (
 // FactRepository описывает хранилище фактов.
 //
 //	– Save сохраняет новый факт; перезапись по тому же ID не происходит.
-//	– GetByID возвращает факт по ID или ErrNotFound.
+//	– GetByID возвращает факт по ID или ErrFactNotFound.
 //	– PopRandom извлекает и удаляет один случайный ID из очереди, возвращая весь факт.
 type FactRepository interface {
 	Save(ctx context.Context, f *entity.Fact) error
 	GetByID(ctx context.Context, id entity.FactID) (*entity.Fact, error)
 	PopRandom(ctx context.Context) (*entity.Fact, error)
+	GetByCategory(ctx context.Context, category entity.Category, count int) ([]*entity.Fact, error)
 }
 
 type Transactor interface {

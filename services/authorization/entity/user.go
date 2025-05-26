@@ -9,8 +9,9 @@ import (
 type UserID string
 
 var (
-	ErrUserNotFound  = errors.New("user not found")
-	ErrUsernameTaken = errors.New("username already taken")
+	ErrUserNotFound    = errors.New("user not found")
+	ErrUsernameTaken   = errors.New("username already taken")
+	ErrInvalidPassword = errors.New("invalid password")
 )
 
 // User represents a registered account in the system.

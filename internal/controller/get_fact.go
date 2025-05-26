@@ -21,10 +21,11 @@ func (i *implementation) GetFact(ctx context.Context, empty *empty.Empty) (*stor
 
 	return &storypb.GetFactResponse{
 		Fact: &storypb.Fact{
-			Title:   fact.Fact.Title,
-			Summary: fact.Fact.Summary,
-			WikiUrl: fact.Fact.SourceURL,
-			ImgUrl:  fact.Fact.ImageURL,
+			Title:    fact.Fact.Title,
+			Category: string(fact.Fact.Category),
+			Summary:  fact.Fact.Summary,
+			WikiUrl:  fact.Fact.SourceURL,
+			ImgUrl:   fact.Fact.ImageURL,
 		},
 	}, nil
 }

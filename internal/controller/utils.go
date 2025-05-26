@@ -11,7 +11,7 @@ import (
 // GRPCError маппит бизнес-ошибки на gRPC-статусы.
 func GRPCError(err error) error {
 	switch {
-	case errors.Is(err, entity.ErrNotFound):
+	case errors.Is(err, entity.ErrFactNotFound):
 		return status.Errorf(codes.NotFound, "resource not found")
 	// можно добавлять новые случаи здесь в будущем
 	default:
