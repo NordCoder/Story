@@ -46,7 +46,7 @@ func (uc *FactUseCaseImpl) GetFact(ctx context.Context, input GetFactInput) (Get
 				ID:        "-1",
 				Title:     "FUN FACT",
 				Summary:   "we currently don't have any facts ready...",
-				ImageURL:  "",
+				ImageURL:  "https://upload.wikimedia.org/wikipedia/commons/0/0b/Sert_-_sad_smile.svg",
 				SourceURL: "",
 				Lang:      "en",
 			},

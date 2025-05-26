@@ -23,31 +23,31 @@ func (w *wikiMock) GetCategorySummaries(ctx context.Context, category string, li
 			{
 				Title:    "Battle of Stalingrad",
 				Extract:  "The Battle of Stalingrad was a major battle on the Eastern Front of World War II in which Nazi Germany and its allies fought the Soviet Union for control of the city of Stalingrad.",
-				ImageURL: "https://upload.wikimedia.org/wikipedia/commons/a/a3/Stamp_of_Russia-2001-2004-198.jpg",
+				ImageURL: "https://upload.wikimedia.org/wikipedia/commons/a/ae/The_Battle_of_Stalingrad_second_collage.jpg",
 				PageURL:  "https://en.wikipedia.org/wiki/Battle_of_Stalingrad",
 			},
 			{
 				Title:    "D-Day",
 				Extract:  "D-Day was the Allied invasion of Normandy on 6 June 1944. It was one of the largest amphibious military assaults in history and began the liberation of German-occupied Western Europe.",
-				ImageURL: "https://upload.wikimedia.org/wikipedia/commons/a/a2/Omaha_beach_casualties.jpg",
+				ImageURL: "https://upload.wikimedia.org/wikipedia/commons/f/f4/1944_NormandyLST.jpg",
 				PageURL:  "https://en.wikipedia.org/wiki/Normandy_landings",
 			},
 			{
 				Title:    "Operation Barbarossa",
 				Extract:  "Operation Barbarossa was the code name for the Axis invasion of the Soviet Union, which started on 22 June 1941 and marked the beginning of the largest theatre of war in history.",
-				ImageURL: "https://upload.wikimedia.org/wikipedia/commons/8/8e/Operation_Barbarossa_%28map%29.svg",
+				ImageURL: "https://upload.wikimedia.org/wikipedia/commons/5/5f/Operation_Barbarossa_Infobox.jpg",
 				PageURL:  "https://en.wikipedia.org/wiki/Operation_Barbarossa",
 			},
 			{
 				Title:    "Holocaust",
 				Extract:  "The Holocaust was the genocide of European Jews during World War II, in which Nazi Germany and its collaborators systematically murdered six million Jews.",
-				ImageURL: "https://upload.wikimedia.org/wikipedia/commons/5/5c/Library_of_Congress_91115u.jpg",
+				ImageURL: "https://upload.wikimedia.org/wikipedia/commons/2/25/Einsatzgruppen_murder_Jews_in_Ivanhorod%2C_Ukraine%2C_1942_%28cropped%29.jpg",
 				PageURL:  "https://en.wikipedia.org/wiki/The_Holocaust",
 			},
 			{
 				Title:    "Battle of Kursk",
 				Extract:  "The Battle of Kursk was a Second World War engagement between German and Soviet forces on the Eastern Front near Kursk in the Soviet Union.",
-				ImageURL: "https://upload.wikimedia.org/wikipedia/commons/9/95/Kursk_tank_battle_map.png",
+				ImageURL: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Battle_of_Kursk_%28map%29.jpg/330px-Battle_of_Kursk_%28map%29.jpg",
 				PageURL:  "https://en.wikipedia.org/wiki/Battle_of_Kursk",
 			},
 		}

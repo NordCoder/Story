@@ -24,6 +24,7 @@ import (
 	"github.com/NordCoder/Story/services/prefetch/category"
 	prefetcherconfig "github.com/NordCoder/Story/services/prefetch/config"
 	recusecase "github.com/NordCoder/Story/services/recommendation/usecase"
+	"github.com/go-chi/cors"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -56,15 +57,15 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 
 	r.Use(middleware.Timeout(parseDurationOr(httpCfg.Timeouts.Read, 5*time.Second) + parseDurationOr(httpCfg.Timeouts.Write, 10*time.Second)))
 
-	//if httpCfg.CORS.Enabled { todo understand this smart thing
-	//	r.Use(cors.Handler(cors.Options{
-	//		AllowedOrigins:   httpCfg.CORS.AllowedOrigins,
-	//		AllowedMethods:   httpCfg.CORS.AllowedMethods,
-	//		AllowedHeaders:   httpCfg.CORS.AllowedHeaders,
-	//		AllowCredentials: httpCfg.CORS.AllowCredentials,
-	//		MaxAge:           int((parseDurationOr(httpCfg.CORS.MaxAge, 24*time.Hour)).Seconds()),
-	//	}))
-	//}
+	if httpCfg.CORS.Enabled {
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins:   httpCfg.CORS.AllowedOrigins,
+			AllowedMethods:   httpCfg.CORS.AllowedMethods,
+			AllowedHeaders:   httpCfg.CORS.AllowedHeaders,
+			AllowCredentials: httpCfg.CORS.AllowCredentials,
+			MaxAge:           int((parseDurationOr(httpCfg.CORS.MaxAge, 24*time.Hour)).Seconds()),
+		}))
+	}
 
 	r.Handle(httpCfg.Endpoints.Metrics, metrics.Handler())
 	r.Mount(httpCfg.Endpoints.Pprof, middleware.Profiler())
@@ -136,7 +137,7 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	if err := storypb.RegisterStoryHandlerFromEndpoint(ctx, gw, httpCfg.GrpcHost+":"+httpCfg.GrpcPort, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}); err != nil {
 		return err
 	}
-	r.Mount("/", gw)
+	r.Handle("/*", gw)
 
 	addr := fmt.Sprintf("%s:%s", httpCfg.Host, httpCfg.Port)
 	srv := &http.Server{

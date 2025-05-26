@@ -21,8 +21,7 @@ http:
   cors:
     enabled: true
     allowed_origins:
-      - "https://example.com"
-      - "https://*.example.org"
+      - "http://localhost:3000"
     allowed_methods:
       - GET
       - POST
