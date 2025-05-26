@@ -21,16 +21,14 @@ type FactUseCase interface {
 }
 
 type FactUseCaseImpl struct {
-	factRepo           infrastructure.FactRepository
-	factRepoTransactor infrastructure.Transactor
+	factRepo infrastructure.FactRepository
 
 	recService controller.RecService
 }
 
-func NewFactUseCase(factRepo infrastructure.FactRepository, transactor infrastructure.Transactor, recService controller.RecService) *FactUseCaseImpl {
+func NewFactUseCase(factRepo infrastructure.FactRepository, recService controller.RecService) *FactUseCaseImpl {
 	return &FactUseCaseImpl{
-		factRepo:           factRepo,
-		factRepoTransactor: transactor,
+		factRepo: factRepo,
 
 		recService: recService,
 	}
@@ -39,6 +37,19 @@ func NewFactUseCase(factRepo infrastructure.FactRepository, transactor infrastru
 type GetFactInput struct{}
 type GetFactOutput struct {
 	Fact entity.Fact
+}
+
+func returnDefault() GetFactOutput {
+	return GetFactOutput{
+		entity.Fact{
+			ID:        "-1",
+			Title:     "FUN FACT",
+			Summary:   "we currently don't have any facts ready...",
+			ImageURL:  "",
+			SourceURL: "",
+			Lang:      "en",
+		},
+	}
 }
 
 func (uc *FactUseCaseImpl) GetFact(ctx context.Context, input GetFactInput) (GetFactOutput, error) {
@@ -64,17 +75,18 @@ func (uc *FactUseCaseImpl) GetFact(ctx context.Context, input GetFactInput) (Get
 			zap.L().Warn("GetFact: empty category, falling back to random", zap.Error(err2), zap.String("category", string(category)))
 			fact, err = uc.factRepo.PopRandom(ctx)
 
+			if err != nil {
+				return returnDefault(), err
+			}
+
 		}
 	} else {
 		zap.L().Info("GetFact: random path", zap.Float64("rand", r))
 		fact, err = uc.factRepo.PopRandom(ctx)
-	}
 
-	if err != nil {
-		return GetFactOutput{}, err
-	}
-	if fact == nil {
-		return GetFactOutput{}, ErrNotFound
+		if err != nil {
+			return returnDefault(), err
+		}
 	}
 
 	return GetFactOutput{Fact: *fact}, nil

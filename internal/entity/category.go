@@ -6,7 +6,7 @@ var ErrCategoryNotFound = errors.New("category not found")
 
 type Category string
 
-// todo shitty id, i think we dont have to take care or let it for translations api
+// todo shitty idea, i think we dont have to take care or let it for translations api
 //// CategoryConcept — unifies same categories in different languages
 //type CategoryConcept struct {
 //	Lang          string   // ru / en / de ...

@@ -2,7 +2,7 @@ package controller
 
 import (
 	"context"
-	storypb "github.com/NordCoder/Story/generated/api/story"
+	storypb "github.com/NordCoder/Story/generated/api/proto/v1"
 	"github.com/NordCoder/Story/internal/logger"
 	"github.com/NordCoder/Story/internal/usecase"
 	"github.com/golang/protobuf/ptypes/empty"
