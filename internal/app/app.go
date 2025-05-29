@@ -110,14 +110,15 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	readinessHandler.RegisterRoutes(r, httpCfg.Endpoints.Readiness)
 
 	// provider init
-	wwiiProvider := category.NewWWIICategoryProvider()
+	wwiiProvider := category.NewDefaultProvider()
+	advProvider := category.NewStackProvider()
 
 	// prefetcher init
 	prefetchConfig, err := prefetcherconfig.NewPrefetcherConfig()
 	if err != nil {
 		logger.Fatal("failed to start prefetcher", zap.Error(err))
 	}
-	prefetcher := prefetch.NewPrefetcher(prefetchConfig, wiki, factRepo, logger, wwiiProvider)
+	prefetcher := prefetch.NewPrefetcher(prefetchConfig, wiki, factRepo, logger, wwiiProvider, advProvider)
 	go func() { prefetcher.Run(ctx) }()
 
 	dbPool, err := pgxpool.New(ctx, authCfg.DB.URL)
