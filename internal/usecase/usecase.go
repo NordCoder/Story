@@ -45,7 +45,7 @@ func returnDefault() GetFactOutput {
 			ID:        "-1",
 			Title:     "FUN FACT",
 			Summary:   "we currently don't have any facts ready...",
-			ImageURL:  "",
+			ImageURL:  "https://upload.wikimedia.org/wikipedia/commons/3/37/Sad-face.png",
 			SourceURL: "",
 			Lang:      "en",
 		},
@@ -75,8 +75,10 @@ func (uc *FactUseCaseImpl) GetFact(ctx context.Context, input GetFactInput) (Get
 			zap.L().Warn("GetFact: empty category, falling back to random", zap.Error(err2), zap.String("category", string(category)))
 			fact, err = uc.factRepo.PopRandom(ctx)
 
-			if err != nil {
-				return returnDefault(), err
+			zap.L().Warn("fact", zap.Bool("fact is nil", fact == nil))
+
+			if err != nil || fact == nil {
+				return returnDefault(), nil
 			}
 
 		}
@@ -84,8 +86,10 @@ func (uc *FactUseCaseImpl) GetFact(ctx context.Context, input GetFactInput) (Get
 		zap.L().Info("GetFact: random path", zap.Float64("rand", r))
 		fact, err = uc.factRepo.PopRandom(ctx)
 
-		if err != nil {
-			return returnDefault(), err
+		zap.L().Warn("fact", zap.Bool("fact is nil", fact == nil))
+
+		if err != nil || fact == nil {
+			return returnDefault(), nil
 		}
 	}
 
