@@ -2,6 +2,8 @@ package prefetch
 
 import (
 	"context"
+	"github.com/NordCoder/Story/internal/entity"
+	"math/rand"
 	"time"
 
 	"github.com/NordCoder/Story/services/prefetch/category"
@@ -12,19 +14,17 @@ import (
 	"go.uber.org/zap"
 )
 
-// todo refactor prefatcher for work with new category system
-// todo design new category provider based on redis query
-
 type Prefetcher interface {
 	Run(ctx context.Context) error
 }
 
 type prefetcher struct {
-	cfg              *config.PrefetcherConfig
-	wikipediaClient  wikipedia.WikiClient
-	factRepo         *redis.FactRepository
-	logger           *zap.Logger
-	categoryProvider category.Provider
+	cfg                      *config.PrefetcherConfig
+	wikipediaClient          wikipedia.WikiClient
+	factRepo                 *redis.FactRepository
+	logger                   *zap.Logger
+	basicCategoryProvider    category.Provider
+	advancedCategoryProvider category.Provider
 }
 
 // NewPrefetcher создаёт новый экземпляр префетчера.
@@ -33,14 +33,16 @@ func NewPrefetcher(
 	wikipediaClient wikipedia.WikiClient,
 	factRepo *redis.FactRepository,
 	logger *zap.Logger,
-	categoryProvider category.Provider,
+	basicCategoryProvider category.Provider,
+	advancedCategoryProvider category.Provider,
 ) Prefetcher {
 	return &prefetcher{
-		cfg:              cfg,
-		wikipediaClient:  wikipediaClient,
-		factRepo:         factRepo,
-		logger:           logger,
-		categoryProvider: categoryProvider,
+		cfg:                      cfg,
+		wikipediaClient:          wikipediaClient,
+		factRepo:                 factRepo,
+		logger:                   logger,
+		basicCategoryProvider:    basicCategoryProvider,
+		advancedCategoryProvider: advancedCategoryProvider,
 	}
 }
 
@@ -88,13 +90,19 @@ func (p *prefetcher) prefetch(ctx context.Context) error {
 		return nil
 	}
 
-	//todo: add default provider logic
-	concept, err := p.categoryProvider.GetCategory(ctx)
+	var concept entity.Category
+	r := rand.Float64()
+	if r < 0.7 {
+		concept, err = p.advancedCategoryProvider.GetCategory(ctx)
+	} else {
+		concept, err = p.basicCategoryProvider.GetCategory(ctx)
+	}
+
 	if err != nil {
 		p.logger.Error("Failed to get category", zap.Error(err))
 		return err
 	}
-	// todo think how we choose between languages
+
 	summaries, err := p.wikipediaClient.GetCategorySummaries(ctx, concept, p.cfg.BatchSize)
 	if err != nil {
 		p.logger.Error("Failed to fetch summaries from Wikipedia", zap.Error(err))

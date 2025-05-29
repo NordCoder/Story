@@ -72,7 +72,7 @@ func (uc *FactUseCaseImpl) GetFact(ctx context.Context, input GetFactInput) (Get
 		if err2 == nil && len(facts) > 0 {
 			fact = facts[rand.Intn(len(facts))]
 		} else {
-			zap.L().Warn("GetFact: empty category, falling back to random", zap.Error(err2), zap.String("category", string(category)))
+			logger.LoggerFromContext(ctx).Warn("GetFact: empty category, falling back to random", zap.Error(err2), zap.String("category", string(category)))
 			fact, err = uc.factRepo.PopRandom(ctx)
 
 			zap.L().Warn("fact", zap.Bool("fact is nil", fact == nil))
@@ -83,7 +83,7 @@ func (uc *FactUseCaseImpl) GetFact(ctx context.Context, input GetFactInput) (Get
 
 		}
 	} else {
-		zap.L().Info("GetFact: random path", zap.Float64("rand", r))
+		logger.LoggerFromContext(ctx).Info("GetFact: random path", zap.Float64("rand", r))
 		fact, err = uc.factRepo.PopRandom(ctx)
 
 		zap.L().Warn("fact", zap.Bool("fact is nil", fact == nil))
