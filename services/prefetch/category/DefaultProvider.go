@@ -40,11 +40,9 @@ func (p *DefaultProvider) GetCategories(_ context.Context) ([]entity.Category, e
 }
 
 func (p *DefaultProvider) SetCategories(_ context.Context, categories []entity.Category) error {
-	p.categories = categories
 	return nil
 }
 
 func (p *DefaultProvider) AddCategory(_ context.Context, category entity.Category) error {
-	p.categories = append(p.categories, category)
 	return nil
 }

@@ -99,8 +99,8 @@ func (p *prefetcher) prefetch(ctx context.Context) error {
 	}
 
 	if err != nil {
-		p.logger.Error("Failed to get category", zap.Error(err))
-		return err
+		p.logger.Error("Failed to get category from recommendations", zap.Error(err))
+		concept, err = p.basicCategoryProvider.GetCategory(ctx)
 	}
 
 	summaries, err := p.wikipediaClient.GetCategorySummaries(ctx, concept, p.cfg.BatchSize)
