@@ -1,21 +1,19 @@
-version: '3.8'
-
 services:
   redis:
     image: redis:7-alpine
     container_name: wikifeed-redis
     ports:
-      - "${REDIS_PORT:-6379}:${REDIS_PORT:-6379}"
+      - "${REDIS_PORT:-6379}:6379"
 
   db:
     image: postgres:15-alpine
     container_name: wikifeed-db
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_USER:     ${POSTGRES_USER:-appuser}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
-      POSTGRES_DB: ${POSTGRES_DB:-storydb}
+      POSTGRES_DB:       ${POSTGRES_DB:-storydb}
     ports:
-      - "${POSTGRES_PORT:-5432}:${POSTGRES_PORT:-5432}"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
 
@@ -29,8 +27,6 @@ services:
     depends_on:
       - redis
       - db
-    volumes:
-      - ./config/:/app/config/:ro
     environment:
       - REDIS_ADDR=redis:${REDIS_PORT:-6379}
       - POSTGRES_HOST=db
@@ -38,8 +34,25 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-appuser}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secret}
       - POSTGRES_DB=${POSTGRES_DB:-storydb}
+      - HTTP_PORT=${HTTP_PORT:-8080}
     ports:
       - "${HTTP_PORT:-8080}:${HTTP_PORT:-8080}"
+
+  frontend:
+    image: node:18-alpine
+    container_name: wikifeed-frontend-dev
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://feed-api:8080
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- -H 0.0.0.0"
+    depends_on:
+      - feed-api
 
 volumes:
   db_data:
