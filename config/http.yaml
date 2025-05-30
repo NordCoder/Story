@@ -22,6 +22,7 @@ http:
     enabled: true
     allowed_origins:
       - "http://194.87.94.41:3000"
+      - "http://story-app.ru"
     allowed_methods:
       - GET
       - POST
