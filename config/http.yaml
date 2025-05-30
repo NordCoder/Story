@@ -21,7 +21,7 @@ http:
   cors:
     enabled: true
     allowed_origins:
-      - "http://localhost:3000"
+      - "http://194.87.94.41:3000"
     allowed_methods:
       - GET
       - POST
