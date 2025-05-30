@@ -1,13 +1,13 @@
 package wikipedia
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
 	"time"
 
@@ -21,9 +21,13 @@ import (
 // todo implement wiki-mock before first start (it could be another service)
 // todo redesign to make this client return only raw data and create another entity to parse it
 
+type Thumbnail struct {
+	Source string `json:"source"`
+}
+
 // Default configuration constants
 const (
-	defaultAPIURL           = "https://en.wikipedia.org/w/api.php"
+	defaultAPIURL           = "https://ru.wikipedia.org/w/api.php"
 	defaultUserAgent        = "story/1.0 (dimakorzh2005@gmail.com) go-http-client"
 	defaultCategoryPageSize = 100
 	defaultMaxLag           = 5
@@ -148,6 +152,8 @@ func (c *Client) doRequest(ctx context.Context, params url.Values, out interface
 	params.Set("maxlag", fmt.Sprint(c.maxLag))
 	endpoint := fmt.Sprintf("%s?%s", c.apiURL, params.Encode())
 
+	//c.logger.Info("wikiapi endpoint", zap.String("url", endpoint))
+
 	var lastErr error
 	start := time.Now()
 	err := backoff.Retry(func() error {
@@ -173,12 +179,30 @@ func (c *Client) doRequest(ctx context.Context, params url.Values, out interface
 			lastErr = err
 			return err
 		}
-		decoder := json.NewDecoder(resp.Body)
+
+		var bodyReader io.Reader = resp.Body
+		if resp.Header.Get("Content-Encoding") == "gzip" {
+			gzipReader, err := gzip.NewReader(resp.Body)
+			if err != nil {
+				c.logger.Error("failed to create gzip reader", zap.Error(err))
+				return backoff.Permanent(err)
+			}
+			defer gzipReader.Close()
+			bodyReader = gzipReader
+		}
+
+		decoder := json.NewDecoder(bodyReader)
 		if err := decoder.Decode(out); err != nil {
 			c.logger.Error("json decode failed", zap.Error(err))
 			return backoff.Permanent(err)
 		}
 		return nil
+
+		//rawBody, _ := io.ReadAll(bodyReader)
+		//c.logger.Info("raw JSON", zap.ByteString("json", rawBody))
+		//
+		//// временно прерываем выполнение, чтобы просто увидеть JSON:
+		//return backoff.Permanent(fmt.Errorf("debug json output"))
 	}, c.retryPolicy)
 
 	duration := time.Since(start).Seconds()
@@ -192,6 +216,23 @@ func (c *Client) doRequest(ctx context.Context, params url.Values, out interface
 	return nil
 }
 
+// isValidArticle filters out articles that are likely lists or lack images
+func isValidArticle(title, extract string, thumb *Thumbnail) bool {
+	t := strings.ToLower(title)
+	e := strings.ToLower(extract)
+
+	if strings.Contains(t, "список") || strings.Contains(t, "обзор") {
+		return false
+	}
+	if strings.Contains(e, "список") || strings.Contains(e, "это список") {
+		return false
+	}
+	if thumb == nil || thumb.Source == "" {
+		return false
+	}
+	return true
+}
+
 // GetCategorySummaries retrieves up to limit summaries via generator=categorymembers
 func (c *Client) GetCategorySummaries(ctx context.Context, category entity.Category, limit int) ([]*ArticleSummary, error) {
 	params := url.Values{
@@ -200,22 +241,21 @@ func (c *Client) GetCategorySummaries(ctx context.Context, category entity.Categ
 		"gcmtitle":     {"Category:" + string(category)},
 		"gcmnamespace": {"0"},
 		"gcmlimit":     {fmt.Sprint(limit)},
-		"prop":         {"extracts|pageimages"},
+		"prop":         {"extracts|pageimages|info"},
+		"inprop":       {"url"},
 		"exintro":      {"true"},
 		"explaintext":  {"true"},
 		"piprop":       {"thumbnail"},
-		"pithumbsize":  {fmt.Sprint(100)},
+		"pithumbsize":  {fmt.Sprint(1500)},
 	}
 
 	var resp struct {
 		Query struct {
 			Pages map[string]struct {
-				Title     string `json:"title"`
-				Extract   string `json:"extract"`
-				Thumbnail struct {
-					Source string `json:"source"`
-				} `json:"thumbnail"`
-				CanonicalURL string `json:"canonicalurl"`
+				Title        string     `json:"title"`
+				Extract      string     `json:"extract"`
+				Thumbnail    *Thumbnail `json:"thumbnail,omitempty"`
+				CanonicalURL string     `json:"canonicalurl"`
 			} `json:"pages"`
 		} `json:"query"`
 		Error *struct{ Code, Info string } `json:"error,omitempty"`
@@ -227,30 +267,29 @@ func (c *Client) GetCategorySummaries(ctx context.Context, category entity.Categ
 	if resp.Error != nil {
 		return nil, fmt.Errorf("wikiapi error %s: %s", resp.Error.Code, resp.Error.Info)
 	}
-
 	if len(resp.Query.Pages) == 0 {
 		return nil, ErrNoPages
 	}
 
-	// Convert map to slice and sort by title for determinism
-	keys := make([]string, 0, len(resp.Query.Pages))
+	summaries := make([]*ArticleSummary, 0, len(resp.Query.Pages))
 	for _, p := range resp.Query.Pages {
-		keys = append(keys, p.Title)
-	}
-	sort.Strings(keys)
+		if !isValidArticle(p.Title, p.Extract, p.Thumbnail) {
+			continue
+		}
 
-	summaries := make([]*ArticleSummary, 0, len(keys))
-	for _, title := range keys {
-		p := resp.Query.Pages[title]
 		pageURL := p.CanonicalURL
 		if pageURL == "" {
-			pageURL = fmt.Sprintf("https://en.wikipedia.org/wiki/%s", url.PathEscape(p.Title))
+			pageURL = fmt.Sprintf("https://ru.wikipedia.org/wiki/%s", url.PathEscape(p.Title))
+		}
+		imageURL := ""
+		if p.Thumbnail != nil {
+			imageURL = p.Thumbnail.Source
 		}
 		summaries = append(summaries, &ArticleSummary{
 			Title:    p.Title,
 			Category: category,
 			Extract:  p.Extract,
-			ImageURL: p.Thumbnail.Source,
+			ImageURL: imageURL,
 			PageURL:  pageURL,
 		})
 	}

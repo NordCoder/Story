@@ -99,7 +99,7 @@ func (p *prefetcher) prefetch(ctx context.Context) error {
 	}
 
 	if err != nil {
-		p.logger.Error("Failed to get category from recommendations", zap.Error(err))
+		p.logger.Warn("Failed to get category from recommendations", zap.Error(err))
 		concept, err = p.basicCategoryProvider.GetCategory(ctx)
 	}
 

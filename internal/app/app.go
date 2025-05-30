@@ -85,7 +85,9 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 	r.Handle(httpCfg.Endpoints.Metrics, metrics.Handler())
 	r.Mount(httpCfg.Endpoints.Pprof, middleware.Profiler())
 
-	wiki := wikipedia.NewWikiMock()
+	//wiki := wikipedia.NewWikiMock()
+
+	wiki := wikipedia.NewClient(wikipedia.WithLogger(logger))
 
 	redisClient, err := redis.NewRedisClient()
 	if err != nil {

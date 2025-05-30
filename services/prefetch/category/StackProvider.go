@@ -16,7 +16,11 @@ func NewStackProvider() *StackProvider {
 }
 
 func (s *StackProvider) GetCategory(_ context.Context) (entity.Category, error) {
-	cat := s.categories[len(s.categories)-1]
+	var cat entity.Category
+	if len(s.categories) == 0 {
+		return cat, entity.ErrCategoryNotFound
+	}
+	cat = s.categories[len(s.categories)-1]
 	s.categories = s.categories[:len(s.categories)-1]
 	return cat, nil
 }
