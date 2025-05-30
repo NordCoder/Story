@@ -48,12 +48,13 @@ func (a *ArticleSummary) ToFact(category entity.Category) *entity.Fact {
 	}
 }
 
+//todo: it should be in config
 // trimSummary обрезает текст до 280 символов.
 func trimSummary(s string) string {
-	if len(s) <= 280 {
+	if len(s) <= 500 {
 		return s
 	}
-	return s[:280]
+	return s[:500] + "..."
 }
 
 // HTTPClient defines the minimal interface for making HTTP requests
