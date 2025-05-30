@@ -13,7 +13,8 @@ type DefaultProvider struct {
 
 func NewDefaultProvider() *DefaultProvider {
 	return &DefaultProvider{
-		categories: []entity.Category{"Втоарая_мировая_война",
+		categories: []entity.Category{
+			"Втоарая_мировая_война",
 			"Операции_и_сражения_Второй_мировой_войны",
 			"Участники_Второй_мировой_войны",
 			"Политика_во_Второй_мировой_войне",
