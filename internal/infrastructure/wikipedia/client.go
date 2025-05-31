@@ -41,20 +41,15 @@ func (a *ArticleSummary) ToFact(category entity.Category) *entity.Fact {
 		ID:        entity.NewFactID(), // создаём новый уникальный ID
 		Title:     a.Title,
 		Category:  category,
-		Summary:   trimSummary(a.Extract), // обрезаем до 280 символов
+		Summary:   a.Extract,
 		ImageURL:  a.ImageURL,
 		SourceURL: a.PageURL,
 		FetchedAt: time.Now(), // ставим текущее время
 	}
 }
 
-//todo: it should be in config
-// trimSummary обрезает текст до 280 символов.
-func trimSummary(s string) string {
-	if len(s) <= 500 {
-		return s
-	}
-	return s[:500] + "..."
+func formatText(s string) string {
+	return s + "..."
 }
 
 // HTTPClient defines the minimal interface for making HTTP requests
@@ -192,18 +187,16 @@ func (c *Client) doRequest(ctx context.Context, params url.Values, out interface
 			bodyReader = gzipReader
 		}
 
+		//rawBody, _ := io.ReadAll(bodyReader)
+		//c.logger.Info("wiki raw JSON", zap.ByteString("json", rawBody))
+		//
+		//bodyReader = strings.NewReader(string(rawBody))
 		decoder := json.NewDecoder(bodyReader)
 		if err := decoder.Decode(out); err != nil {
 			c.logger.Error("json decode failed", zap.Error(err))
 			return backoff.Permanent(err)
 		}
 		return nil
-
-		//rawBody, _ := io.ReadAll(bodyReader)
-		//c.logger.Info("raw JSON", zap.ByteString("json", rawBody))
-		//
-		//// временно прерываем выполнение, чтобы просто увидеть JSON:
-		//return backoff.Permanent(fmt.Errorf("debug json output"))
 	}, c.retryPolicy)
 
 	duration := time.Since(start).Seconds()
@@ -234,68 +227,134 @@ func isValidArticle(title, extract string, thumb *Thumbnail) bool {
 	return true
 }
 
-// GetCategorySummaries retrieves up to limit summaries via generator=categorymembers
+// --- Структуры ---
+type pageMeta struct {
+	PageID int    `json:"pageid"`
+	Title  string `json:"title"`
+	URL    string `json:"canonicalurl"`
+}
+
+type pageExtract struct {
+	PageID    int    `json:"pageid"`
+	Extract   string `json:"extract"`
+	Title     string `json:"title"`
+	Thumbnail *struct {
+		Source string `json:"source"`
+	} `json:"thumbnail,omitempty"`
+	URL string `json:"canonicalurl"`
+}
+
+// --- Основная логика ---
 func (c *Client) GetCategorySummaries(ctx context.Context, category entity.Category, limit int) ([]*ArticleSummary, error) {
+	pageIDs, metaMap, err := c.fetchPageIDs(ctx, category, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	summaries, err := c.fetchExtractsOneByOne(ctx, pageIDs, metaMap, category)
+	if err != nil {
+		return nil, err
+	}
+
+	return summaries, nil
+}
+
+// Шаг 1: Получить pageids и метаданные
+func (c *Client) fetchPageIDs(ctx context.Context, category entity.Category, limit int) ([]string, map[string]pageMeta, error) {
 	params := url.Values{
 		"action":       {"query"},
 		"generator":    {"categorymembers"},
 		"gcmtitle":     {"Category:" + string(category)},
 		"gcmnamespace": {"0"},
 		"gcmlimit":     {fmt.Sprint(limit)},
-		"prop":         {"extracts|pageimages|info"},
+		"prop":         {"info"},
 		"inprop":       {"url"},
-		"exintro":      {"true"},
-		"explaintext":  {"true"},
-		"piprop":       {"thumbnail"},
-		"pithumbsize":  {fmt.Sprint(1500)},
 	}
 
 	var resp struct {
 		Query struct {
-			Pages map[string]struct {
-				Title        string     `json:"title"`
-				Extract      string     `json:"extract"`
-				Thumbnail    *Thumbnail `json:"thumbnail,omitempty"`
-				CanonicalURL string     `json:"canonicalurl"`
-			} `json:"pages"`
+			Pages map[string]pageMeta `json:"pages"`
 		} `json:"query"`
-		Error *struct{ Code, Info string } `json:"error,omitempty"`
 	}
 
 	if err := c.doRequest(ctx, params, &resp); err != nil {
-		return nil, err
-	}
-	if resp.Error != nil {
-		return nil, fmt.Errorf("wikiapi error %s: %s", resp.Error.Code, resp.Error.Info)
+		return nil, nil, err
 	}
 	if len(resp.Query.Pages) == 0 {
-		return nil, ErrNoPages
+		return nil, nil, ErrNoPages
 	}
 
-	summaries := make([]*ArticleSummary, 0, len(resp.Query.Pages))
-	for _, p := range resp.Query.Pages {
-		if !isValidArticle(p.Title, p.Extract, p.Thumbnail) {
+	pageIDs := make([]string, 0, len(resp.Query.Pages))
+	metaMap := make(map[string]pageMeta)
+	for k, v := range resp.Query.Pages {
+		pageIDs = append(pageIDs, k)
+		metaMap[k] = v
+	}
+
+	return pageIDs, metaMap, nil
+}
+
+// Шаг 2: Получить extracts и картинки по одному запросу на статью
+func (c *Client) fetchExtractsOneByOne(ctx context.Context, pageIDs []string, metaMap map[string]pageMeta, category entity.Category) ([]*ArticleSummary, error) {
+	summaries := make([]*ArticleSummary, 0, len(pageIDs))
+
+	for _, id := range pageIDs {
+		params := url.Values{
+			"action":        {"query"},
+			"prop":          {"extracts|pageimages|info"},
+			"pageids":       {id},
+			"explaintext":   {"true"},
+			"exchars":       {fmt.Sprint(500)},
+			"piprop":        {"thumbnail"},
+			"pithumbsize":   {fmt.Sprint(1500)},
+			"inprop":        {"url"},
+			"formatversion": {"2"},
+		}
+
+		var resp struct {
+			Query struct {
+				Pages []pageExtract `json:"pages"`
+			} `json:"query"`
+		}
+
+		if err := c.doRequest(ctx, params, &resp); err != nil {
+			c.logger.Warn("failed to fetch page details", zap.String("id", id), zap.Error(err))
 			continue
 		}
 
-		pageURL := p.CanonicalURL
-		if pageURL == "" {
-			pageURL = fmt.Sprintf("https://ru.wikipedia.org/wiki/%s", url.PathEscape(p.Title))
+		if len(resp.Query.Pages) == 0 {
+			continue
 		}
-		imageURL := ""
+
+		p := resp.Query.Pages[0]
+		if p.Extract == "" || p.Title == "" {
+			c.logger.Warn("skipping empty article", zap.String("title", p.Title))
+			continue
+		}
+
+		img := ""
 		if p.Thumbnail != nil {
-			imageURL = p.Thumbnail.Source
+			img = p.Thumbnail.Source
 		}
+
+		//if !isValidArticle(p.Title, p.Extract, (*Thumbnail)(p.Thumbnail)) {
+		//	c.logger.Warn("skipping invalid article", zap.String("title", p.Title))
+		//	continue
+		//}
+
 		summaries = append(summaries, &ArticleSummary{
 			Title:    p.Title,
 			Category: category,
 			Extract:  p.Extract,
-			ImageURL: imageURL,
-			PageURL:  pageURL,
+			ImageURL: img,
+			PageURL:  p.URL,
 		})
 	}
 
-	c.logger.Info("fetched category summaries", zap.String("category", string(category)), zap.Int("count", len(summaries)))
+	if len(summaries) == 0 {
+		return nil, ErrNoPages
+	}
+
 	return summaries, nil
 }
 
