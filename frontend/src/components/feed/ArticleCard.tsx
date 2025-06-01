@@ -46,9 +46,9 @@ export default function ArticleCard({ article }: ArticleCardProps) {
     const isLoading = toggleMutation.status === 'pending';
 
     return (
-        <div className="max-w-xl mx-auto p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-200">
+        <div className="max-w-xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-200">
             {article.imgUrl && (
-                <div className="relative w-full h-64 bg-gray-100 rounded-xl overflow-hidden">
+                <div className="relative w-full h-48 bg-gray-100 rounded-xl overflow-hidden mb-4">
                     <Image
                         src={article.imgUrl}
                         alt={article.title}
@@ -61,12 +61,18 @@ export default function ArticleCard({ article }: ArticleCardProps) {
                 </div>
             )}
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-50 mb-4">
+            <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-50 mb-4">
                 {article.title}
-            </h2>
-            <p className="text-gray-700 dark:text-gray-300 mb-6">
-                {article.summary}
-            </p>
+            </h3>
+
+            {/* Блок с горизонтальной прокруткой для длинного текста */}
+            <div className="mb-6">
+                <div className="overflow-x-auto whitespace-nowrap px-2 py-1 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <p className="inline-block text-gray-700 dark:text-gray-300">
+                        {article.summary}
+                    </p>
+                </div>
+            </div>
 
             <div className="flex justify-between items-center">
                 <button
@@ -74,13 +80,14 @@ export default function ArticleCard({ article }: ArticleCardProps) {
                     disabled={isLoading}
                     className={clsx(
                         'flex items-center space-x-2 text-lg',
-                        isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:text-red-500'
+                        isLoading
+                            ? 'opacity-50 cursor-not-allowed text-gray-400'
+                            : liked
+                                ? 'text-red-500'
+                                : 'text-gray-600 hover:text-red-500'
                     )}
                 >
-                    <Heart
-                        size={24}
-                        className={clsx('transition-colors', liked && 'text-red-500')}
-                    />
+                    <Heart size={24} />
                     <span>{liked ? 'Liked' : 'Like'}</span>
                 </button>
 
