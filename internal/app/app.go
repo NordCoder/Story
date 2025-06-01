@@ -94,7 +94,7 @@ func Run(httpCfg *config.HTTPConfig, logger *zap.Logger) error {
 		logger.Fatal("failed to start redis client", zap.Error(err))
 	}
 
-	factRepo := redis.NewFactRepository(redisClient, 5*time.Hour)
+	factRepo := redis.NewFactRepository(redisClient, 1*time.Hour, ctx)
 
 	// Лайвнесс: просто проверка, жив ли процесс
 	r.Get(httpCfg.Endpoints.Liveness, controller.LiveHandler)
