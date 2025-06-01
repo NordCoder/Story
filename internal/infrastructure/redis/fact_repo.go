@@ -19,31 +19,52 @@ type FactRepository struct {
 	client           *redis.Client
 	ttl              time.Duration
 	keyFact          string // шаблон "fact:%s"
-	keyFactSet       string // множество всех ID
+	keyFeedQueue     string // имя очереди
 	categoryProvider category.Provider
+	ctx              context.Context
 }
 
 func NewFactRepository(
 	client *redis.Client,
 	ttl time.Duration,
+	ctx context.Context,
 	opts ...Option,
 ) *FactRepository {
 	repo := &FactRepository{
-		client:     client,
-		ttl:        ttl,
-		keyFact:    "fact:%s",
-		keyFactSet: "all_fact_ids",
+		client:       client,
+		ttl:          ttl,
+		keyFact:      "fact:%s",
+		keyFeedQueue: "feed_queue",
+		ctx:          ctx,
 	}
 	for _, o := range opts {
 		o(repo)
 	}
+
+	// Запуск воркера очистки
+	// todo: вынести в конфиг
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		for {
+			select {
+			case <-ticker.C:
+				ctx := context.Background()
+				if err := repo.CleanDeadFacts(ctx); err != nil {
+					logger.LoggerFromContext(ctx).Error("failed to clean dead facts", zap.Error(err))
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	return repo
 }
 
 type Option func(*FactRepository)
 
-func WithKeyFact(pattern string) Option { return func(r *FactRepository) { r.keyFact = pattern } }
-func WithKeyFactSet(name string) Option { return func(r *FactRepository) { r.keyFactSet = name } }
+func WithKeyFact(pattern string) Option   { return func(r *FactRepository) { r.keyFact = pattern } }
+func WithKeyFeedQueue(name string) Option { return func(r *FactRepository) { r.keyFeedQueue = name } }
 func WithCategoryProvider(p category.Provider) Option {
 	return func(r *FactRepository) { r.categoryProvider = p }
 }
@@ -59,8 +80,8 @@ func (r *FactRepository) Save(ctx context.Context, f *entity.Fact) error {
 		return fmt.Errorf("redis SET: %w", err)
 	}
 
-	if err := r.client.SAdd(ctx, r.keyFactSet, string(f.ID)).Err(); err != nil {
-		return fmt.Errorf("redis SADD (set of facts): %w", err)
+	if err := r.client.LPush(ctx, r.keyFeedQueue, string(f.ID)).Err(); err != nil {
+		return fmt.Errorf("redis LPUSH: %w", err)
 	}
 
 	categoryKey := fmt.Sprintf("category_set:%s", f.Category)
@@ -110,7 +131,6 @@ func (r *FactRepository) GetByCategory(ctx context.Context, category entity.Cate
 		if err != nil {
 			if errors.Is(err, entity.ErrFactNotFound) {
 				_ = r.client.SRem(ctx, categoryKey, idStr).Err()
-				_ = r.client.SRem(ctx, r.keyFactSet, idStr).Err()
 				continue
 			}
 			return nil, err
@@ -120,30 +140,66 @@ func (r *FactRepository) GetByCategory(ctx context.Context, category entity.Cate
 	return facts, nil
 }
 
-// PopRandom выбирает случайный живой факт из множества all_fact_ids
 func (r *FactRepository) PopRandom(ctx context.Context) (*entity.Fact, error) {
-	ids, err := r.client.SRandMemberN(ctx, r.keyFactSet, 5).Result() // берем пачку
-	if err != nil {
-		return nil, fmt.Errorf("SRANDMEMBER: %w", err)
-	}
-	for _, id := range ids {
-		fact, err := r.GetByID(ctx, entity.FactID(id))
+	for {
+		res, err := r.client.BRPop(ctx, 100*time.Millisecond, r.keyFeedQueue).Result()
+		if err != nil {
+			if errors.Is(err, redis.Nil) {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("redis BRPOP: %w", err)
+		}
+		if len(res) != 2 {
+			return nil, fmt.Errorf("unexpected BRPOP result: %v", res)
+		}
+		id := entity.FactID(res[1])
+		fact, err := r.GetByID(ctx, id)
 		if err != nil {
 			if errors.Is(err, entity.ErrFactNotFound) {
-				_ = r.client.SRem(ctx, r.keyFactSet, id).Err()
 				continue
 			}
 			return nil, err
 		}
 		return fact, nil
 	}
-	return nil, nil // живых фактов нет
+}
+
+func (r *FactRepository) CleanDeadFacts(ctx context.Context) error {
+	ids, err := r.client.LRange(ctx, r.keyFeedQueue, 0, -1).Result()
+	if err != nil {
+		return fmt.Errorf("LRANGE: %w", err)
+	}
+	for _, id := range ids {
+		exists, err := r.client.Exists(ctx, r.factKey(entity.FactID(id))).Result()
+		if err != nil {
+			return fmt.Errorf("EXISTS: %w", err)
+		}
+		if exists == 0 {
+			_ = r.client.LRem(ctx, r.keyFeedQueue, 0, id).Err()
+			// Чистим из всех категорий через SCAN
+			scanCursor := uint64(0)
+			for {
+				keys, nextCursor, err := r.client.Scan(ctx, scanCursor, "category_set:*", 100).Result()
+				if err != nil {
+					return fmt.Errorf("SCAN category_set:*: %w", err)
+				}
+				for _, key := range keys {
+					_ = r.client.SRem(ctx, key, id).Err()
+				}
+				if nextCursor == 0 {
+					break
+				}
+				scanCursor = nextCursor
+			}
+		}
+	}
+	return nil
 }
 
 func (r *FactRepository) CountFacts(ctx context.Context) (int64, error) {
-	count, err := r.client.SCard(ctx, r.keyFactSet).Result()
+	count, err := r.client.LLen(ctx, r.keyFeedQueue).Result()
 	if err != nil {
-		return 0, fmt.Errorf("SCARD: %w", err)
+		return 0, fmt.Errorf("LLEN: %w", err)
 	}
 	return count, nil
 }
